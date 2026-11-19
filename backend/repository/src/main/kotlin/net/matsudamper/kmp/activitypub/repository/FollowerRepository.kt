@@ -13,11 +13,16 @@ interface FollowerRepository {
      * フォローを記録して、Accept を配信キューに積む。
      * 同じ相手から受け直したら行は増やさず、まだ送れていない Accept を置き換える
      *
-     * @return 宛先のアカウントが無ければ false
+     * 宛先のアカウントが相手のアクターかサーバーをブロックしていれば記録しない。
+     * ブロックの確認と記録を分けると、間にブロックされた相手のフォローが成立する
+     *
+     * @param followerHost 相手のアクター URL の小文字のホスト。サーバーのブロックと照らし合わせる
+     * @return 宛先のアカウントが無いか、ブロックしている相手なら false
      */
     fun record(
         username: String,
         follower: RemoteActorRecord,
+        followerHost: String?,
         followActivityUri: String,
         receivedAt: Instant,
         acceptBody: String,
@@ -31,6 +36,31 @@ interface FollowerRepository {
         followerActorUri: String,
         followActivityUri: String?,
     ): Boolean
+
+    /**
+     * フォローの記録を消して、Reject を積む。まだ送れていない Accept も一緒に消える。
+     * 消すのと投函を分けると、こちらではフォロワーでないのに相手はフォローしているつもりのまま残る
+     *
+     * @param followActivityUri 断る Follow の id。この id のフォローだけを外す。読んでから外すまでに同じ相手が Follow し直していても、
+     *   新しいフォローは外さない
+     * @param rejectsUnrecordedFollow true なら、記録が無くても Reject を積む。受けたばかりの Follow を断るときに使う。
+     *   false なら、記録を外せたときだけ積む
+     * @return 宛先のアカウントが無いか、Reject を積まなかったら false
+     */
+    fun reject(
+        username: String,
+        followerActorUri: String,
+        followActivityUri: String,
+        rejectsUnrecordedFollow: Boolean,
+        inbox: String,
+        rejectBody: String,
+        now: Instant,
+    ): Boolean
+
+    /**
+     * フォローしてきた相手を、Accept を送れていないものも含めて返す
+     */
+    fun listFollowRecords(username: String): List<FollowRecord>
 
     fun findFolloweeUsername(
         followerActorUri: String,
@@ -87,6 +117,16 @@ interface FollowerRepository {
      */
     fun findDeliveryInboxes(username: String): List<String>
 }
+
+/**
+ * @param followActivityUri 相手が送ってきた Follow の id
+ * @param inbox 相手個人の inbox
+ */
+data class FollowRecord(
+    val followerActorUri: String,
+    val followActivityUri: String,
+    val inbox: String,
+)
 
 data class RemoteActorRecord(
     val actorUri: String,

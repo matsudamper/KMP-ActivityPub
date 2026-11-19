@@ -2,20 +2,28 @@ package net.matsudamper.kmp.activitypub
 
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.ActorListPosition
+import net.matsudamper.kmp.activitypub.repository.FollowRecord
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.ListedActor
 import net.matsudamper.kmp.activitypub.repository.RemoteActorProfileRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
 
 /**
- * フォロワーのいない状態だけを返す。配信先だけは [deliveryInboxes] で足せる
+ * フォロワーのいない状態だけを返す。配信先だけは [deliveryInboxes] で、断る対象のフォローは [followRecords] で足せる
  */
 internal class FakeFollowerRepository : FollowerRepository {
     val deliveryInboxes = mutableListOf<String>()
 
+    /** フォローしてきた相手。対になる文字列はフォローされたこちらのアカウント名 */
+    val followRecords = mutableListOf<Pair<String, FollowRecord>>()
+
+    /** 積んだ Reject。積んだ順 */
+    val rejects = mutableListOf<Rejected>()
+
     override fun record(
         username: String,
         follower: RemoteActorRecord,
+        followerHost: String?,
         followActivityUri: String,
         receivedAt: Instant,
         acceptBody: String,
@@ -26,6 +34,25 @@ internal class FakeFollowerRepository : FollowerRepository {
         followerActorUri: String,
         followActivityUri: String?,
     ): Boolean = false
+
+    override fun reject(
+        username: String,
+        followerActorUri: String,
+        followActivityUri: String,
+        rejectsUnrecordedFollow: Boolean,
+        inbox: String,
+        rejectBody: String,
+        now: Instant,
+    ): Boolean {
+        val removed = followRecords.removeAll {
+            it.first == username && it.second.followerActorUri == followerActorUri && it.second.followActivityUri == followActivityUri
+        }
+        if (!rejectsUnrecordedFollow && !removed) return false
+        rejects += Rejected(username = username, followerActorUri = followerActorUri, inbox = inbox, body = rejectBody)
+        return true
+    }
+
+    override fun listFollowRecords(username: String): List<FollowRecord> = followRecords.filter { it.first == username }.map { it.second }
 
     override fun findFolloweeUsername(
         followerActorUri: String,
@@ -63,4 +90,11 @@ internal class FakeFollowerRepository : FollowerRepository {
     override fun countAcceptedFollowers(username: String): Long = 0
 
     override fun findDeliveryInboxes(username: String): List<String> = deliveryInboxes.toList()
+
+    data class Rejected(
+        val username: String,
+        val followerActorUri: String,
+        val inbox: String,
+        val body: String,
+    )
 }

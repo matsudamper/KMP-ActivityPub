@@ -1,21 +1,27 @@
 package net.matsudamper.kmp.activitypub.logic
 
 import java.time.Clock
+import kotlinx.coroutines.CancellationException
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.ActorBlockRepository
 import net.matsudamper.kmp.activitypub.repository.BlockedActor
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import org.slf4j.LoggerFactory
 
 /**
- * アカウントごとに他のサーバーのアクターをブロックする。ブロックしたアクターの投稿・ブースト・通知は、読むときに除く。フォローしていれば外す
+ * アカウントごとに他のサーバーのアクターをブロックする。ブロックしたアクターの投稿・ブースト・通知は、読むときに除く。
+ * 相手との間のフォローは両方向とも外し、ブロックしたことを相手のサーバーに伝える
  */
 class ActorBlockService(
     private val accounts: AccountRepository,
     private val actorBlocks: ActorBlockRepository,
     private val profiles: UserProfileService,
     private val following: FollowingService,
+    private val delivery: BlockDelivery,
     private val clock: Clock,
 ) {
+    private val logger = LoggerFactory.getLogger(ActorBlockService::class.java)
+
     /**
      * 新しくブロックした順
      */
@@ -33,15 +39,25 @@ class ActorBlockService(
         val actor = BlockedActor(actorUri = actorUri, acct = "${user.username}@${user.host}")
         actorBlocks.add(accountId, actor, clock.instant())
         following.unfollowBlocked(accountId)
+        try {
+            delivery.blockActor(accountId, actorUri)
+        } catch (failure: CancellationException) {
+            throw failure
+        } catch (failure: Exception) {
+            logger.warn("ブロックを記録したが相手のサーバーに伝えられなかった: $actorUri", failure)
+        }
         return BlockActorResult.Blocked(actor)
     }
 
     /**
-     * ブロックしていなくても成功する
+     * ブロックしていなくても成功する。相手に Block を送っていれば取り消す
      */
     fun unblock(accountId: AccountId?, actorUri: String): UnblockActorResult {
         if (accountId == null || accounts.findById(accountId) == null) return UnblockActorResult.NotLoggedIn
-        actorBlocks.remove(accountId, actorUri)
+        val undoEnqueued = actorBlocks.remove(accountId, actorUri, clock.instant()) { blockActivityId ->
+            delivery.undoBlockBody(accountId, actorUri, blockActivityId)
+        }
+        if (undoEnqueued) delivery.onEnqueued()
         return UnblockActorResult.Unblocked
     }
 }

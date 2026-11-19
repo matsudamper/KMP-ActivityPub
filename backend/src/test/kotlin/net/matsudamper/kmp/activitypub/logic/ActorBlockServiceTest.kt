@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.logic
 
 import java.time.Clock
+import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -39,6 +40,7 @@ class ActorBlockServiceTest {
             "local.example",
             Clock.systemUTC(),
         )
+    private val delivery = RecordingBlockDelivery()
     private val service = ActorBlockService(
         accounts = repositories.accountRepository,
         actorBlocks = repositories.actorBlockRepository,
@@ -58,6 +60,7 @@ class ActorBlockServiceTest {
             localDomain = "local.example",
         ),
         following = following,
+        delivery = delivery,
         clock = Clock.systemUTC(),
     )
     private val blockLists = BlockLists(repositories.serverBlockRepository, repositories.actorBlockRepository)
@@ -112,5 +115,22 @@ class ActorBlockServiceTest {
         assertTrue(following.isFollowing(bob, carolUri))
         assertFalse(following.setFollowing(alice, carolUri, true))
         assertFalse(following.isFollowing(alice, carolUri))
+    }
+
+    @Test
+    fun blockingTellsTheActorAndUnblockingUndoesOnlyTheSentBlock() = runBlocking {
+        service.block(alice, "carol@remote.example")
+        assertEquals(listOf(carolUri), delivery.blockedActors)
+
+        service.unblock(alice, carolUri)
+        assertEquals(listOf(), delivery.undoneBlockActivityIds)
+
+        service.block(alice, "carol@remote.example")
+        repositories.actorBlockRepository.recordBlockActivity(alice, carolUri, "https://local.example/users/alice#blocks/1", "$carolUri/inbox", "{}", Instant.EPOCH)
+        service.unblock(alice, carolUri)
+        assertEquals(listOf("https://local.example/users/alice#blocks/1"), delivery.undoneBlockActivityIds)
+        assertEquals(listOf("undo:https://local.example/users/alice#blocks/1"), repositories.actorBlockRepository.undoBodies)
+        assertEquals(1, delivery.enqueuedCount)
+        assertEquals(null, repositories.actorBlockRepository.findBlockActivityId(alice, carolUri))
     }
 }

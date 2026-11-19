@@ -19,10 +19,12 @@ class ServerBlockServiceTest {
     private val blockLists = BlockLists(repositories.serverBlockRepository, repositories.actorBlockRepository)
     private val following =
         FollowingService(repositories.accountRepository, repositories.followingRepository, blockLists, NoOpFollowDelivery, TimelineInvalidator {}, "local.example", Clock.systemUTC())
+    private val delivery = RecordingBlockDelivery()
     private val service = ServerBlockService(
         accounts = repositories.accountRepository,
         serverBlocks = repositories.serverBlockRepository,
         following = following,
+        delivery = delivery,
         clock = Clock.systemUTC(),
     )
     private val alice = repositories.accountRepository.add("alice", "hash", "type")
@@ -103,6 +105,7 @@ class ServerBlockServiceTest {
         assertFalse(following.isFollowing(alice, dave))
         assertTrue(following.isFollowing(alice, erin))
         assertTrue(following.isFollowing(bob, carol))
+        assertEquals(listOf(alice), delivery.rejectedAccounts)
         assertFalse(following.setFollowing(alice, carol, true))
         assertFalse(following.isFollowing(alice, carol))
 

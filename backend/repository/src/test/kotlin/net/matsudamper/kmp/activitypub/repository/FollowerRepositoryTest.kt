@@ -222,6 +222,59 @@ class FollowerRepositoryTest {
         }
     }
 
+    @Test
+    fun `ブロックしているアクターやサーバーからの Follow は記録せず Accept も積まない`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val user1 = checkNotNull(repositories.accountRepository.findByUsername("user1")).id
+            repositories.actorBlockRepository.add(user1, BlockedActor(FOLLOWER.actorUri, "alice@remote.example"), NOW)
+            assertFalse(repositories.followerRepository.recordFollow(FOLLOWER))
+            repositories.actorBlockRepository.remove(user1, FOLLOWER.actorUri, NOW) { null }
+
+            repositories.serverBlockRepository.add(user1, "remote.example", NOW)
+            assertFalse(repositories.followerRepository.recordFollow(FOLLOWER))
+
+            assertEquals(listOf(), repositories.followerRepository.listFollowRecords("user1"))
+            assertEquals(listOf(), repositories.deliveryQueueRepository.claim(now = NOW, limit = 10))
+        }
+    }
+
+    @Test
+    fun `Reject を積むとフォローと送れていない Accept を消す`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val followers = repositories.followerRepository
+            assertTrue(followers.recordFollow(FOLLOWER))
+            assertEquals(
+                listOf(FollowRecord(FOLLOWER.actorUri, FOLLOW_ACTIVITY_URI, FOLLOWER.inbox)),
+                followers.listFollowRecords("user1"),
+            )
+
+            assertFalse(followers.reject("user1", FOLLOWER.actorUri, "https://remote.example/follows/old", false, FOLLOWER.inbox, "reject-old", NOW))
+            assertEquals(1, followers.listFollowRecords("user1").size)
+
+            assertTrue(followers.reject("user1", FOLLOWER.actorUri, FOLLOW_ACTIVITY_URI, false, FOLLOWER.inbox, "reject-1", NOW))
+
+            assertEquals(listOf(), followers.listFollowRecords("user1"))
+            val claimed = repositories.deliveryQueueRepository.claim(now = NOW, limit = 10).single()
+            assertEquals(FOLLOWER.inbox, claimed.inbox)
+            assertEquals("reject-1", claimed.body)
+            assertFalse(followers.reject("nobody", FOLLOWER.actorUri, FOLLOW_ACTIVITY_URI, true, FOLLOWER.inbox, "reject-2", NOW))
+        }
+    }
+
+    @Test
+    fun `受けた Follow を断るときは記録が無くても Reject を積み、別の Follow のフォローは外さない`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val followers = repositories.followerRepository
+            assertTrue(followers.recordFollow(FOLLOWER, followActivityUri = "https://remote.example/follows/new"))
+            repositories.deliveryQueueRepository.markDelivered(repositories.deliveryQueueRepository.claim(now = NOW, limit = 10).single().id, NOW)
+
+            assertTrue(followers.reject("user1", FOLLOWER.actorUri, FOLLOW_ACTIVITY_URI, true, FOLLOWER.inbox, "reject-1", NOW))
+
+            assertEquals(listOf("reject-1"), repositories.deliveryQueueRepository.claim(now = NOW, limit = 10).map { it.body })
+            assertEquals(listOf("https://remote.example/follows/new"), followers.listFollowRecords("user1").map { it.followActivityUri })
+        }
+    }
+
     private fun FollowerRepository.recordFollow(
         follower: RemoteActorRecord,
         username: String = "user1",
@@ -230,6 +283,7 @@ class FollowerRepositoryTest {
     ): Boolean = record(
         username = username,
         follower = follower,
+        followerHost = "remote.example",
         followActivityUri = followActivityUri,
         receivedAt = NOW,
         acceptBody = acceptBody,

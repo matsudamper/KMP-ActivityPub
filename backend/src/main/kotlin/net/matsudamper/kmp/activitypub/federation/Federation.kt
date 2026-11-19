@@ -12,6 +12,7 @@ import net.matsudamper.kmp.activitypub.delivery.DeliveryQueueWorker
 import net.matsudamper.kmp.activitypub.delivery.DeliveryRetryPolicy
 import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
 import net.matsudamper.kmp.activitypub.logic.AccountService
+import net.matsudamper.kmp.activitypub.logic.BlockDelivery
 import net.matsudamper.kmp.activitypub.logic.BlockLists
 import net.matsudamper.kmp.activitypub.logic.BoostService
 import net.matsudamper.kmp.activitypub.logic.CustomEmojiService
@@ -39,6 +40,7 @@ import net.matsudamper.kmp.activitypub.logic.UnsavedRemoteNotes
 import net.matsudamper.kmp.activitypub.logic.UploadedNoteImageCleaner
 import net.matsudamper.kmp.activitypub.repository.AccountBoostRepository
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
+import net.matsudamper.kmp.activitypub.repository.ActorBlockRepository
 import net.matsudamper.kmp.activitypub.repository.BoostRepository
 import net.matsudamper.kmp.activitypub.repository.CustomEmojiRepository
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
@@ -119,6 +121,7 @@ internal class Federation(
     boostRepository: BoostRepository,
     customEmojiRepository: CustomEmojiRepository,
     blockLists: BlockLists,
+    actorBlockRepository: ActorBlockRepository,
     noteCountRepository: NoteCountRepository,
     pollRepository: PollRepository,
     imageStorage: ImageStorage?,
@@ -186,7 +189,7 @@ internal class Federation(
             followerRepository = followerRepository,
             blocks = inboxBlocks,
             notifications = notificationService,
-            onAcceptEnqueued = deliveryQueueWorker::wakeUp,
+            onEnqueued = deliveryQueueWorker::wakeUp,
         )
 
     private val kotpubRemoteUserLookup =
@@ -277,6 +280,18 @@ internal class Federation(
             clock = Clock.systemUTC(),
             onEnqueued = deliveryQueueWorker::wakeUp,
         )
+
+    val blockDelivery: BlockDelivery = QueuedBlockDelivery(
+        accounts = accountService,
+        directory = directory,
+        actors = remoteActors,
+        storedActors = remoteActorRepository,
+        actorBlocks = actorBlockRepository,
+        followers = followerRepository,
+        blockLists = blockLists,
+        clock = Clock.systemUTC(),
+        wakeUpQueue = deliveryQueueWorker::wakeUp,
+    )
 
     val followDelivery = QueuedFollowDelivery(
         accountService,
