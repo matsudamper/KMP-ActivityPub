@@ -10,7 +10,9 @@ import io.ktor.server.request.header
 import io.ktor.server.request.receiveChannel
 import io.ktor.server.request.uri
 import io.ktor.server.response.header
+import io.ktor.server.response.respond
 import io.ktor.server.response.respondBytes
+import io.ktor.server.response.respondRedirect
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.RouteSelector
 import io.ktor.server.routing.RouteSelectorEvaluation
@@ -142,12 +144,22 @@ internal fun Route.federationRoutes(federation: Federation) {
         call.respondEndpoint(response)
     }
 
-    get("/notes/{publicId}") {
+    // Misskey と同じく、ブラウザで開いたときは JSON ではなく投稿の画面を見せる
+    createChild(ActivityPubAcceptRouteSelector).get("/notes/{publicId}") {
         val response =
             withOpenTelemetryContext {
                 federation.noteEndpoint.get(call.parameters["publicId"], call.request.header(HttpHeaders.Accept))
             }
         call.respondEndpoint(response)
+    }
+
+    get("/notes/{publicId}") {
+        val pagePath = withOpenTelemetryContext { federation.notePagePath(call.parameters["publicId"].orEmpty()) }
+        if (pagePath == null) {
+            call.respond(HttpStatusCode.NotFound)
+        } else {
+            call.respondRedirect(pagePath)
+        }
     }
 
     get("/notes/{publicId}/quote_authorizations/{token}") {
