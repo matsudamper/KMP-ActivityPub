@@ -37,7 +37,17 @@ class UserProfileServiceTest {
     private val repositories = FakeRepositories()
     private val viewer = repositories.accountRepository.add("alice", "hash", "type")
     private val actorUri = "https://remote.example/users/bob"
-    private val following = FollowingService(repositories.accountRepository, repositories.followingRepository, NoOpFollowDelivery, TimelineInvalidator {}, "local.example", Clock.systemUTC())
+    private val following =
+        FollowingService(
+            repositories.accountRepository,
+            repositories.followingRepository,
+            BlockLists(repositories.serverBlockRepository, repositories.actorBlockRepository),
+            NoOpFollowDelivery,
+            TimelineInvalidator {
+            },
+            "local.example",
+            Clock.systemUTC(),
+        )
     private val requests = mutableListOf<String>()
 
     /**

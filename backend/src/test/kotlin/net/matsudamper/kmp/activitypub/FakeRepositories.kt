@@ -95,7 +95,13 @@ internal class FakeRepositories : Repositories {
             if (groupId == null) groups.remove(accountId to actorUri) else groups[accountId to actorUri] = groupId
             return true
         }
-        override fun list(accountId: AccountId, after: ActorListPosition?, limit: Int): List<ListedActor> = throw NotImplementedError()
+        override fun list(accountId: AccountId, after: ActorListPosition?, limit: Int): List<ListedActor> = entries
+            .filter { it.first == accountId }
+            .map { it.second }
+            .sortedDescending()
+            .filter { after == null || it < after.actorUri }
+            .take(limit)
+            .map { ListedActor(actorUri = it, listedAt = Instant.EPOCH, preferredUsername = null, displayName = null, iconUrl = null, emojis = listOf(), actorUpdatedAt = null) }
         override fun count(accountId: AccountId): Long = entries.count { it.first == accountId }.toLong()
         override fun listAcceptedActorUris(username: String, after: String?, limit: Int): List<String> = throw NotImplementedError()
         override fun countAccepted(username: String): Long = throw NotImplementedError()
