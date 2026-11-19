@@ -19,9 +19,13 @@ interface DeliveryQueueRepository {
     fun enqueueQuoteAccept(accountId: AccountId, inbox: String, body: String, now: Instant)
 
     /**
-     * ブロックを解除したので、送った Block を取り消す Undo を積む
+     * ブロックを解除したので、送った Block を取り消す Undo を積む。
+     * まだ一度も送っていない Block は消すだけで Undo は積まない。再送を待っている Block は消し、送っている途中の Block は失敗しても送り直さない。
+     * 残すと、送り直した Block が Undo を追い越して、解除したのに相手にはブロックが残る
+     *
+     * @param blockId 取り消す Block の id
      */
-    fun enqueueUndoBlock(accountId: AccountId, inbox: String, body: String, now: Instant)
+    fun cancelPendingBlockAndEnqueueUndo(accountId: AccountId, inbox: String, blockId: String, body: String, now: Instant)
 
     fun cancelPendingFollowAndEnqueueUndo(accountId: AccountId, inbox: String, followId: String, body: String, now: Instant)
 

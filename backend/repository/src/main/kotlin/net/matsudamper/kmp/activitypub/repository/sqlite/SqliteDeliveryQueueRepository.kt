@@ -37,8 +37,24 @@ internal class SqliteDeliveryQueueRepository(
         jooq.withConnection { dsl -> enqueueFollowing(dsl, accountId, inbox, body, now, DeliveryQueueValues.KIND_ACCEPT_QUOTE) }
     }
 
-    override fun enqueueUndoBlock(accountId: AccountId, inbox: String, body: String, now: Instant) {
-        jooq.withConnection { dsl -> enqueueFollowing(dsl, accountId, inbox, body, now, DeliveryQueueValues.KIND_UNDO_BLOCK) }
+    override fun cancelPendingBlockAndEnqueueUndo(accountId: AccountId, inbox: String, blockId: String, body: String, now: Instant) {
+        jooq.transaction { dsl ->
+            val matchingBlock = DELIVERY_QUEUE.ACCOUNT_ID.eq(accountId.value)
+                .and(DELIVERY_QUEUE.INBOX.eq(inbox))
+                .and(DELIVERY_QUEUE.KIND.eq(DeliveryQueueValues.KIND_BLOCK))
+                .and(DSL.field("json_extract({0}, '$.id')", String::class.java, DELIVERY_QUEUE.BODY).eq(blockId))
+            val removedAttempts = dsl.deleteFrom(DELIVERY_QUEUE).where(matchingBlock)
+                .and(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_PENDING))
+                .returning(DELIVERY_QUEUE.ATTEMPTS).fetch(DELIVERY_QUEUE.ATTEMPTS)
+            val cancelledDelivering = dsl.update(DELIVERY_QUEUE)
+                .set(DELIVERY_QUEUE.KIND, DeliveryQueueValues.KIND_CANCELLED_BLOCK)
+                .where(matchingBlock)
+                .and(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_DELIVERING))
+                .execute()
+            if (removedAttempts.isEmpty() || removedAttempts.any { it != 0L } || cancelledDelivering > 0) {
+                enqueueFollowing(dsl, accountId, inbox, body, now, DeliveryQueueValues.KIND_UNDO_BLOCK)
+            }
+        }
     }
 
     override fun cancelPendingFollowAndEnqueueUndo(accountId: AccountId, inbox: String, followId: String, body: String, now: Instant) {

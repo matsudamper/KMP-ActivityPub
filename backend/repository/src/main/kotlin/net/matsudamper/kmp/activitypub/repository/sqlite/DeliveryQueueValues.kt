@@ -11,6 +11,11 @@ internal object DeliveryQueueValues {
     const val KIND_REJECT_FOLLOW = "reject_follow"
     const val KIND_BLOCK = "block"
     const val KIND_UNDO_BLOCK = "undo_block"
+
+    /**
+     * 送っている途中にブロックを解除した Block。送れなかったら送り直さずに消す。送り直すと Undo を追い越す
+     */
+    const val KIND_CANCELLED_BLOCK = "cancelled_block"
     const val KIND_CREATE_NOTE = "create_note"
     const val KIND_UPDATE_NOTE = "update_note"
     const val KIND_UPDATE_ACTOR = "update_actor"
@@ -34,7 +39,7 @@ internal object DeliveryQueueValues {
     /**
      * 送れなかったら送り直さずに消す種別
      */
-    val CANCELLED_KINDS = listOf(KIND_CANCELLED_LIKE, KIND_CANCELLED_ANNOUNCE)
+    val CANCELLED_KINDS = listOf(KIND_CANCELLED_LIKE, KIND_CANCELLED_ANNOUNCE, KIND_CANCELLED_BLOCK)
 
     const val STATE_PENDING = "pending"
     const val STATE_DELIVERING = "delivering"

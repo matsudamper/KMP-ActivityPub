@@ -29,7 +29,7 @@ internal class FakeDeliveryQueueRepository(
     override fun enqueueQuoteAccept(accountId: AccountId, inbox: String, body: String, now: Instant) {
         quoteAcceptBodies.add(body)
     }
-    override fun enqueueUndoBlock(accountId: AccountId, inbox: String, body: String, now: Instant) {
+    override fun cancelPendingBlockAndEnqueueUndo(accountId: AccountId, inbox: String, blockId: String, body: String, now: Instant) {
         undoBlockBodies.add(body)
     }
     override fun cancelPendingFollowAndEnqueueUndo(accountId: AccountId, inbox: String, followId: String, body: String, now: Instant) {

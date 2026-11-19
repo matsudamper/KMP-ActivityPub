@@ -192,7 +192,7 @@ class DeliveryQueueOpenTelemetryTest {
         }
         override fun enqueueFollow(accountId: AccountId, inbox: String, body: String, now: Instant) = error("未使用")
         override fun enqueueQuoteAccept(accountId: AccountId, inbox: String, body: String, now: Instant) = error("未使用")
-        override fun enqueueUndoBlock(accountId: AccountId, inbox: String, body: String, now: Instant) = error("未使用")
+        override fun cancelPendingBlockAndEnqueueUndo(accountId: AccountId, inbox: String, blockId: String, body: String, now: Instant) = error("未使用")
         override fun cancelPendingFollowAndEnqueueUndo(accountId: AccountId, inbox: String, followId: String, body: String, now: Instant) = error("未使用")
         override fun enqueueNote(post: NotePost): EnqueueNoteResult = error("未使用")
         override fun enqueueNoteDeletion(deletion: NoteDeletion): Boolean = error("未使用")

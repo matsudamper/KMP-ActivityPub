@@ -75,7 +75,7 @@ internal class QueuedBlockDelivery(
         val inbox = findInbox(actorUri) ?: return
         val block = BlockActivities.block(blockActivityId, senderActorId, actorUri)
         val undo = BlockActivities.undo("$senderActorId#undo/${UUID.randomUUID()}", block)
-        queue.enqueueUndoBlock(accountId, inbox, AppJson.encodeToString(OutgoingActivity.serializer(), undo), clock.instant())
+        queue.cancelPendingBlockAndEnqueueUndo(accountId, inbox, blockActivityId, AppJson.encodeToString(OutgoingActivity.serializer(), undo), clock.instant())
         onEnqueued()
     }
 

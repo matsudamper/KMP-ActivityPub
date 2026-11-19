@@ -12,6 +12,7 @@ internal fun createFailedDeliveryKindText(kind: String): String {
         "reject_follow" -> "フォローの拒否"
         "block" -> "ブロック"
         "undo_block" -> "ブロックの解除"
+        "cancelled_block" -> "取り消したブロック"
         "create_note" -> "投稿"
         "update_actor" -> "プロフィールの更新"
         "delete_note" -> "投稿の削除"
