@@ -208,6 +208,6 @@ internal fun Application.module(deps: AppDependencies) {
         if (federation != null) {
             federationRoutes(federation)
         }
-        staticRoutes(staticFiles)
+        staticRoutes(staticFiles = staticFiles, pageOgpService = federation?.pageOgpService)
     }
 }
