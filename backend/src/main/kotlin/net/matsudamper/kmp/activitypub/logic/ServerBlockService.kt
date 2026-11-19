@@ -6,12 +6,14 @@ import net.matsudamper.kmp.activitypub.repository.ServerBlockRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
 /**
- * アカウントごとに他のサーバーをブロックする。ブロックしたサーバーのアクターの投稿・ブースト・通知は、読むときに除く。そのサーバーのアクターをフォローしていれば外す
+ * アカウントごとに他のサーバーをブロックする。ブロックしたサーバーのアクターの投稿・ブースト・通知は、読むときに除く。
+ * そのサーバーのアクターとの間のフォローは両方向とも外す
  */
 class ServerBlockService(
     private val accounts: AccountRepository,
     private val serverBlocks: ServerBlockRepository,
     private val following: FollowingService,
+    private val delivery: BlockDelivery,
     private val clock: Clock,
 ) {
     /**
@@ -27,6 +29,7 @@ class ServerBlockService(
         val host = ServerHost.parse(server) ?: return BlockServerResult.InvalidServer
         serverBlocks.add(accountId, host, clock.instant())
         following.unfollowBlocked(accountId)
+        delivery.rejectBlockedFollowers(accountId)
         return BlockServerResult.Blocked(host)
     }
 

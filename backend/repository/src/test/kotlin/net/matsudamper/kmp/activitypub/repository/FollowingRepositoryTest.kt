@@ -125,6 +125,7 @@ class FollowingRepositoryTest {
                             fields = listOf(),
                         ),
                     ),
+                    followerHost = null,
                     followActivityUri = "$knownActorUri/follows/1",
                     receivedAt = Instant.EPOCH,
                     acceptBody = "accept",

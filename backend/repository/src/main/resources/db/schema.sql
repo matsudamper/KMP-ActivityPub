@@ -605,6 +605,10 @@ CREATE TABLE account_actor_blocks (
     -- 一覧に出す username@host。ブロックしたときのもの
     acct TEXT NOT NULL,
     created_at TEXT NOT NULL,
+    -- 相手に送った Block の id。解除の Undo に埋め込む。送る前と、送るようになる前にブロックした行は NULL
+    block_activity_id TEXT,
+    -- Block を送った inbox。解除の Undo もここへ送る。解除のときに相手を引き直さずに済む
+    block_inbox TEXT,
     PRIMARY KEY (account_id, actor_uri)
 );
 

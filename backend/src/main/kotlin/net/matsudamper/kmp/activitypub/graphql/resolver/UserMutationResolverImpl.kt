@@ -214,15 +214,15 @@ class UserMutationResolverImpl : UserMutationResolver {
         actorUri: String,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlUnblockAccountResult>> {
-        val result = GraphQlEngine.diContainer(env).actorBlockService.unblock(
-            accountId = GraphQlEngine.graphQlContext(env).userAccountId(),
-            actorUri = actorUri,
-        )
-        val failure = when (result) {
-            UnblockActorResult.Unblocked -> null
-            UnblockActorResult.NotLoggedIn -> QlUnblockAccountFailure.NOT_LOGGED_IN
+        val accountId = GraphQlEngine.graphQlContext(env).userAccountId()
+        val service = GraphQlEngine.diContainer(env).actorBlockService
+        return otelFuture {
+            val failure = when (service.unblock(accountId = accountId, actorUri = actorUri)) {
+                UnblockActorResult.Unblocked -> null
+                UnblockActorResult.NotLoggedIn -> QlUnblockAccountFailure.NOT_LOGGED_IN
+            }
+            DataFetcherResult.Builder(QlUnblockAccountResult(failure = failure)).build()
         }
-        return CompletableFuture.completedFuture(DataFetcherResult.Builder(QlUnblockAccountResult(failure = failure)).build())
     }
 
     /**
