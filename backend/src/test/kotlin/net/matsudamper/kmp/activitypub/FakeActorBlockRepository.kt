@@ -26,7 +26,7 @@ internal class FakeActorBlockRepository : ActorBlockRepository {
         rows.firstOrNull { it.accountId == accountId && it.actor.actorUri == actorUri }?.blockActivityId
 
     override fun recordBlockActivity(accountId: AccountId, actorUri: String, blockActivityId: String, inbox: String, body: String, now: Instant): Boolean {
-        val index = rows.indexOfFirst { it.accountId == accountId && it.actor.actorUri == actorUri }.takeIf { it >= 0 } ?: return false
+        val index = rows.indexOfFirst { it.accountId == accountId && it.actor.actorUri == actorUri && it.blockActivityId == null }.takeIf { it >= 0 } ?: return false
         rows[index] = rows[index].copy(blockActivityId = blockActivityId)
         blockBodies += body
         return true

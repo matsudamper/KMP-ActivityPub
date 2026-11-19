@@ -28,7 +28,9 @@ interface ActorBlockRepository {
      * 送る Block の id を記録して、配信キューに積む。記録と投函を分けると、解除のときに取り消す Block が分からなくなる
      *
      * @param blockActivityId [body] の Block の id
-     * @return ブロックしていなければ何もせず false
+     * 既に Block を記録していれば積まない。同じ相手へのブロックが並ぶと、上書きした方の Block しか解除で取り消せなくなる
+     *
+     * @return ブロックしていないか、既に Block を記録していれば何もせず false
      */
     fun recordBlockActivity(accountId: AccountId, actorUri: String, blockActivityId: String, inbox: String, body: String, now: Instant): Boolean
 }

@@ -63,6 +63,7 @@ internal class SqliteActorBlockRepository(
             .set(ACCOUNT_ACTOR_BLOCKS.BLOCK_ACTIVITY_ID, blockActivityId)
             .where(ACCOUNT_ACTOR_BLOCKS.ACCOUNT_ID.eq(accountId.value))
             .and(ACCOUNT_ACTOR_BLOCKS.ACTOR_URI.eq(actorUri))
+            .and(ACCOUNT_ACTOR_BLOCKS.BLOCK_ACTIVITY_ID.isNull)
             .execute()
         if (updated == 0) return@transaction false
         dsl.insertInto(DELIVERY_QUEUE)
