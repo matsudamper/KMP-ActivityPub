@@ -43,5 +43,6 @@ class ReceivedNoteToRemoteNoteInputTest {
         mentions = listOf(),
         poll = null,
         linkHref = linkHref,
+        unknownTypes = listOf(),
     )
 }

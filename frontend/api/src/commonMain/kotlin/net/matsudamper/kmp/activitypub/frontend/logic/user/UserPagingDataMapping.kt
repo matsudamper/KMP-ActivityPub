@@ -7,6 +7,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQue
 import net.matsudamper.kmp.activitypub.frontend.graphql.NotificationsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.PostRevisionsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.TimelineQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.UnknownObjectTypesQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ActorFields
 import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ActorListFields
 import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.NotificationFields
@@ -592,6 +593,38 @@ fun FailedDeliveriesQuery.Data.withNextPage(page: FailedDeliveriesQuery.Data): F
             failedDeliveries = beforeUserInfo.failedDeliveries.copy(
                 deliveries = beforeUserInfo.failedDeliveries.deliveries + pageDeliveries.deliveries,
                 nextCursor = pageDeliveries.nextCursor,
+            ),
+        ),
+    )
+}
+
+fun UnknownObjectTypesQuery.Data.toUserUnknownObjectTypesResult(): UserUnknownObjectTypesResult {
+    val page = userInfo?.unknownObjectTypes ?: return UserUnknownObjectTypesResult.NotLoggedIn
+    return UserUnknownObjectTypesResult.Success(
+        types = page.types.map {
+            UserUnknownObjectType(
+                typeName = it.typeName,
+                sourceUrl = it.sourceUrl,
+                seenCount = it.seenCount,
+                firstSeenAt = it.firstSeenAt,
+                lastSeenAt = it.lastSeenAt,
+            )
+        },
+        nextCursor = page.nextCursor,
+    )
+}
+
+/**
+ * 続きのページを後ろにつなぐ。どちらかが読めていなければ null
+ */
+fun UnknownObjectTypesQuery.Data.withNextPage(page: UnknownObjectTypesQuery.Data): UnknownObjectTypesQuery.Data? {
+    val beforeUserInfo = userInfo ?: return null
+    val pageTypes = page.userInfo?.unknownObjectTypes ?: return null
+    return copy(
+        userInfo = beforeUserInfo.copy(
+            unknownObjectTypes = beforeUserInfo.unknownObjectTypes.copy(
+                types = beforeUserInfo.unknownObjectTypes.types + pageTypes.types,
+                nextCursor = pageTypes.nextCursor,
             ),
         ),
     )

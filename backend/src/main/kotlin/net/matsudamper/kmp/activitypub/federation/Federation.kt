@@ -54,6 +54,7 @@ import net.matsudamper.kmp.activitypub.repository.PollRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.StampRepository
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
+import net.matsudamper.kmp.activitypub.repository.UnknownObjectTypeRepository
 import net.matsudamper.kmp.activitypub.timeline.TimelineService
 import net.matsudamper.kotpub.actor.ActorDirectory
 import net.matsudamper.kotpub.actor.ActorEndpoint
@@ -122,9 +123,11 @@ internal class Federation(
     pollRepository: PollRepository,
     imageStorage: ImageStorage?,
     instanceActorKeyRepository: InstanceActorKeyRepository,
+    unknownObjectTypeRepository: UnknownObjectTypeRepository,
     remoteIconProxySigningKey: ByteArray,
     openTelemetry: OpenTelemetry,
 ) : AutoCloseable {
+    private val unknownTypes = RecordedUnknownTypes(repository = unknownObjectTypeRepository, clock = Clock.systemUTC())
     private val instanceActor = storedInstanceActor(domain = domain, keys = instanceActorKeyRepository)
     private val httpClient = SignedFetchActivityPubHttpClient(
         client = OkHttpActivityPubClient(),
@@ -494,10 +497,11 @@ internal class Federation(
                         remoteNotes = remoteNotes,
                         approvals = quoteApprovals,
                     ),
-                    UpdateHandler(actors = UpdateActorHandler(followers), notes = receivedNotes),
+                    UpdateHandler(actors = UpdateActorHandler(followers), notes = receivedNotes, unknownTypes = unknownTypes),
                     CreateNoteHandler(
                         notes = receivedNotes,
                         pollVotes = RecordedPollVotes(domain = domain, polls = pollRepository, blocks = inboxBlocks, timeline = timeline, clock = Clock.systemUTC()),
+                        unknownTypes = unknownTypes,
                     ),
                     FollowResponseHandler("Accept", followingResponses),
                     FollowResponseHandler("Reject", followingResponses),

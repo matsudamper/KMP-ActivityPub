@@ -400,6 +400,7 @@ class RemoteNoteReceptionTest {
         mentions = listOf(),
         poll = null,
         linkHref = null,
+        unknownTypes = listOf(),
     )
 
     private class Fixture(openTelemetry: OpenTelemetry) {

@@ -171,6 +171,7 @@ internal fun Application.module(deps: AppDependencies) {
                 loginThrottle = deps.loginThrottle,
                 adminAccountIds = deps.env.adminAccountIds,
                 failedDeliveryService = deps.failedDeliveryService,
+                unknownObjectTypeService = deps.unknownObjectTypeService,
                 notePostService = federation?.notePostService,
                 profileUpdateService = federation?.profileUpdateService,
                 likeService = federation?.likeService,

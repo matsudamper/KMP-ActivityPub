@@ -20,6 +20,7 @@ import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.PostSearchService
 import net.matsudamper.kmp.activitypub.logic.ProfileLikesService
 import net.matsudamper.kmp.activitypub.logic.ServerBlockService
+import net.matsudamper.kmp.activitypub.logic.UnknownObjectTypeService
 import net.matsudamper.kmp.activitypub.logic.UserProfileService
 import net.matsudamper.kmp.activitypub.logic.UserSearchService
 import net.matsudamper.kmp.activitypub.oidc.OidcSigningKey
@@ -78,6 +79,7 @@ class AppDependencies(
         clock = Clock.systemUTC(),
     )
     val failedDeliveryService: FailedDeliveryService = FailedDeliveryService(repository = repositories.failedDeliveryRepository)
+    val unknownObjectTypeService: UnknownObjectTypeService = UnknownObjectTypeService(repository = repositories.unknownObjectTypeRepository)
     val followListService: FollowListService = FollowListService(
         accounts = repositories.accountRepository,
         following = repositories.followingRepository,
@@ -138,6 +140,7 @@ class AppDependencies(
                 pollRepository = repositories.pollRepository,
                 imageStorage = imageStorage,
                 instanceActorKeyRepository = repositories.instanceActorKeyRepository,
+                unknownObjectTypeRepository = repositories.unknownObjectTypeRepository,
                 remoteIconProxySigningKey = env.remoteIconProxySecret.encodeToByteArray(),
                 openTelemetry = OpenTelemetryInitializer.get(),
             )

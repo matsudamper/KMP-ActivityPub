@@ -131,6 +131,14 @@ sealed interface Screen : NavKey {
         override val loginRequired: Boolean get() = true
     }
 
+    @Serializable
+    data object UnknownObjectTypes : Screen {
+        override val pathPattern: PathPattern get() = PathPattern("/admin/unknown-object-types")
+        override val pathParameters: Map<String, String> get() = mapOf()
+        override val parentScreen: Screen get() = Admin
+        override val loginRequired: Boolean get() = true
+    }
+
     /**
      * @param id 送るのを諦めた配信の id
      */
@@ -356,6 +364,7 @@ sealed interface Screen : NavKey {
                 BlockedAccounts.pathPattern to { _ -> BlockedAccounts },
                 Admin.pathPattern to { _ -> Admin },
                 FailedDeliveries.pathPattern to { _ -> FailedDeliveries },
+                UnknownObjectTypes.pathPattern to { _ -> UnknownObjectTypes },
                 FailedDelivery.PATH_PATTERN to { parameters ->
                     FailedDelivery(id = parameters.getValue(FailedDelivery.ID_PARAMETER))
                 },

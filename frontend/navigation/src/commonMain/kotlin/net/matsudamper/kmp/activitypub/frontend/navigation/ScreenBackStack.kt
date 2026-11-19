@@ -36,6 +36,7 @@ private val ScreenSavedStateConfiguration = SavedStateConfiguration {
             subclass(Screen.Admin::class)
             subclass(Screen.FailedDeliveries::class)
             subclass(Screen.FailedDelivery::class)
+            subclass(Screen.UnknownObjectTypes::class)
             subclass(Screen.ProfileEdit::class)
             subclass(Screen.Following::class)
             subclass(Screen.Followers::class)

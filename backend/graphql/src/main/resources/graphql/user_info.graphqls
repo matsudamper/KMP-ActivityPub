@@ -27,6 +27,11 @@ type UserInfo {
     failedDeliveries(after: String, limit: Int!): FailedDeliveryPage! @lazy
     "送るのを諦めた配信を 1 件。無ければ null。管理者でなければエラー"
     failedDelivery(id: FailedDeliveryId!): FailedDelivery @lazy
+    """
+    届いたものの中にあった、このサーバーが読み方を知らない ActivityPub の type を、初めて見た新しい順に返す。
+    after には前回の nextCursor を渡す。limit は 100 までに縮める。管理者でなければエラー
+    """
+    unknownObjectTypes(after: String, limit: Int!): UnknownObjectTypePage! @lazy
     "フォローを仕分けるグループ。作った順"
     followingGroups: [FollowingGroup!]! @lazy
     "どのグループにも入れていないフォローを入れるメインの名前"
@@ -84,6 +89,22 @@ type FailedDelivery {
     failedAt: String
     "最後に送れなかった理由"
     lastError: String
+}
+
+type UnknownObjectTypePage {
+    types: [UnknownObjectType!]!
+    nextCursor: String
+}
+
+"届いたものの中にあった、このサーバーが読み方を知らない ActivityPub の type。型と出どころの組ごとに 1 件"
+type UnknownObjectType {
+    typeName: String!
+    "型を見つけた object の id。無ければ包んでいたアクティビティの id"
+    sourceUrl: String!
+    "同じ型と出どころを見た回数"
+    seenCount: Int!
+    firstSeenAt: String!
+    lastSeenAt: String!
 }
 
 "フォローを仕分けるグループ。どのグループにも入れていないフォローはメインに入る"
