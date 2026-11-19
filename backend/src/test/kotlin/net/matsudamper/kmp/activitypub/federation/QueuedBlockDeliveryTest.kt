@@ -40,10 +40,9 @@ class QueuedBlockDeliveryTest {
         storedActors = repositories.remoteActorRepository,
         actorBlocks = repositories.actorBlockRepository,
         followers = repositories.followerRepository,
-        queue = repositories.deliveryQueueRepository,
         blockLists = BlockLists(repositories.serverBlockRepository, repositories.actorBlockRepository),
         clock = Clock.systemUTC(),
-        onEnqueued = { enqueuedCount++ },
+        wakeUpQueue = { enqueuedCount++ },
     )
 
     @Test
@@ -89,10 +88,8 @@ class QueuedBlockDeliveryTest {
     }
 
     @Test
-    fun undoEmbedsTheSentBlock() = runBlocking {
-        delivery.undoBlock(alice, CAROL, "$ALICE_ACTOR#blocks/1")
-
-        val undo = decode(repositories.deliveryQueueRepository.undoBlockBodies.single())
+    fun undoEmbedsTheSentBlock() {
+        val undo = decode(checkNotNull(delivery.undoBlockBody(alice, CAROL, "$ALICE_ACTOR#blocks/1")))
         assertEquals("Undo", undo.string("type"))
         assertEquals(ALICE_ACTOR, undo.string("actor"))
         val block = undo.getValue("object").jsonObject

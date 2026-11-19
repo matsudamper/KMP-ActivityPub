@@ -288,10 +288,9 @@ internal class Federation(
         storedActors = remoteActorRepository,
         actorBlocks = actorBlockRepository,
         followers = followerRepository,
-        queue = deliveryQueueRepository,
         blockLists = blockLists,
         clock = Clock.systemUTC(),
-        onEnqueued = deliveryQueueWorker::wakeUp,
+        wakeUpQueue = deliveryQueueWorker::wakeUp,
     )
 
     val followDelivery = QueuedFollowDelivery(

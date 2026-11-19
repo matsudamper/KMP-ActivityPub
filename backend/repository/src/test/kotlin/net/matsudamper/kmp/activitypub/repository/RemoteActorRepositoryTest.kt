@@ -276,6 +276,7 @@ class RemoteActorRepositoryTest {
                     fields = listOf(),
                 ),
             ),
+            followerHost = null,
             followActivityUri = "$actorUri/follows/1",
             receivedAt = NOW,
             acceptBody = "accept",

@@ -129,6 +129,8 @@ class ActorBlockServiceTest {
         repositories.actorBlockRepository.recordBlockActivity(alice, carolUri, "https://local.example/users/alice#blocks/1", "$carolUri/inbox", "{}", Instant.EPOCH)
         service.unblock(alice, carolUri)
         assertEquals(listOf("https://local.example/users/alice#blocks/1"), delivery.undoneBlockActivityIds)
+        assertEquals(listOf("undo:https://local.example/users/alice#blocks/1"), repositories.actorBlockRepository.undoBodies)
+        assertEquals(1, delivery.enqueuedCount)
         assertEquals(null, repositories.actorBlockRepository.findBlockActivityId(alice, carolUri))
     }
 }

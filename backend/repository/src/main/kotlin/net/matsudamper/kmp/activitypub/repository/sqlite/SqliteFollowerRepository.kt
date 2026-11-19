@@ -8,8 +8,10 @@ import net.matsudamper.kmp.activitypub.repository.ListedActor
 import net.matsudamper.kmp.activitypub.repository.RemoteActorProfileRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_ACTOR_BLOCKS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_BOOSTS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_FOLLOWERS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_SERVER_BLOCKS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.DELIVERY_QUEUE
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_ACTORS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTES
@@ -22,11 +24,22 @@ internal class SqliteFollowerRepository(
     override fun record(
         username: String,
         follower: RemoteActorRecord,
+        followerHost: String?,
         followActivityUri: String,
         receivedAt: Instant,
         acceptBody: String,
     ): Boolean = jooq.transaction { dsl ->
         val accountId = dsl.findAccountId(username) ?: return@transaction false
+        val actorBlocked = dsl.fetchExists(
+            ACCOUNT_ACTOR_BLOCKS,
+            ACCOUNT_ACTOR_BLOCKS.ACCOUNT_ID.eq(accountId).and(ACCOUNT_ACTOR_BLOCKS.ACTOR_URI.eq(follower.actorUri)),
+        )
+        val serverBlocked = followerHost != null &&
+            dsl.fetchExists(
+                ACCOUNT_SERVER_BLOCKS,
+                ACCOUNT_SERVER_BLOCKS.ACCOUNT_ID.eq(accountId).and(ACCOUNT_SERVER_BLOCKS.HOST.eq(followerHost)),
+            )
+        if (actorBlocked || serverBlocked) return@transaction false
         val storedReceivedAt = StoredInstant.format(receivedAt)
 
         val profile = follower.profile

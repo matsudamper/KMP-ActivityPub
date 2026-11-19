@@ -13,11 +13,16 @@ interface FollowerRepository {
      * フォローを記録して、Accept を配信キューに積む。
      * 同じ相手から受け直したら行は増やさず、まだ送れていない Accept を置き換える
      *
-     * @return 宛先のアカウントが無ければ false
+     * 宛先のアカウントが相手のアクターかサーバーをブロックしていれば記録しない。
+     * ブロックの確認と記録を分けると、間にブロックされた相手のフォローが成立する
+     *
+     * @param followerHost 相手のアクター URL の小文字のホスト。サーバーのブロックと照らし合わせる
+     * @return 宛先のアカウントが無いか、ブロックしている相手なら false
      */
     fun record(
         username: String,
         follower: RemoteActorRecord,
+        followerHost: String?,
         followActivityUri: String,
         receivedAt: Instant,
         acceptBody: String,

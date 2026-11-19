@@ -11,6 +11,9 @@ internal class FakeActorBlockRepository : ActorBlockRepository {
     /** 積んだ Block。積んだ順 */
     val blockBodies = mutableListOf<String>()
 
+    /** 積んだ Block の Undo。積んだ順 */
+    val undoBodies = mutableListOf<String>()
+
     override fun list(accountId: AccountId): List<BlockedActor> = rows.filter { it.accountId == accountId }.map { it.actor }.reversed()
 
     override fun add(accountId: AccountId, actor: BlockedActor, createdAt: Instant) {
@@ -18,10 +21,13 @@ internal class FakeActorBlockRepository : ActorBlockRepository {
         if (index == null) rows += Row(accountId, actor, null) else rows[index] = rows[index].copy(actor = actor)
     }
 
-    override fun remove(accountId: AccountId, actorUri: String): String? {
-        val removed = rows.firstOrNull { it.accountId == accountId && it.actor.actorUri == actorUri } ?: return null
+    override fun remove(accountId: AccountId, actorUri: String, now: Instant, undoBody: (blockActivityId: String) -> String?): Boolean {
+        val removed = rows.firstOrNull { it.accountId == accountId && it.actor.actorUri == actorUri } ?: return false
         rows.remove(removed)
-        return removed.blockActivityId
+        val blockActivityId = removed.blockActivityId ?: return false
+        val body = undoBody(blockActivityId) ?: return false
+        undoBodies += body
+        return true
     }
 
     override fun findBlockActivityId(accountId: AccountId, actorUri: String): String? =

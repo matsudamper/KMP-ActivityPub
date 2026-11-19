@@ -9,6 +9,7 @@ internal class RecordingBlockDelivery : BlockDelivery {
     val blockedActors = mutableListOf<String>()
     val rejectedAccounts = mutableListOf<AccountId>()
     val undoneBlockActivityIds = mutableListOf<String>()
+    var enqueuedCount = 0
 
     override suspend fun blockActor(accountId: AccountId, actorUri: String) {
         blockedActors += actorUri
@@ -18,7 +19,12 @@ internal class RecordingBlockDelivery : BlockDelivery {
         rejectedAccounts += accountId
     }
 
-    override suspend fun undoBlock(accountId: AccountId, actorUri: String, blockActivityId: String) {
+    override fun undoBlockBody(accountId: AccountId, actorUri: String, blockActivityId: String): String {
         undoneBlockActivityIds += blockActivityId
+        return "undo:$blockActivityId"
+    }
+
+    override fun onEnqueued() {
+        enqueuedCount++
     }
 }

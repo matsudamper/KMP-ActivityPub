@@ -18,7 +18,12 @@ interface BlockDelivery {
     fun rejectBlockedFollowers(accountId: AccountId)
 
     /**
-     * ブロックしたときに送った Block を取り消す Undo を積む
+     * ブロックしたときに送った Block を取り消す Undo を作る。送り主のアクターを引けなければ null
      */
-    suspend fun undoBlock(accountId: AccountId, actorUri: String, blockActivityId: String)
+    fun undoBlockBody(accountId: AccountId, actorUri: String, blockActivityId: String): String?
+
+    /**
+     * 積んだ配信を、次の巡回を待たずに送らせる
+     */
+    fun onEnqueued()
 }

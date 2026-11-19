@@ -18,10 +18,16 @@ interface ActorBlockRepository {
     fun add(accountId: AccountId, actor: BlockedActor, createdAt: Instant)
 
     /**
-     * @return 消した行に記録してあった Block の id。ブロックしていないか、Block を送っていなければ null。
-     *   消すのと同時に読む。分けると、間に記録された Block を取り消せない
+     * ブロックを外す。Block を送っていれば、取り消す Undo を Block を送った inbox に積む。
+     * まだ一度も送っていない Block は消すだけで Undo は積まない。再送を待っている Block は消し、送っている途中の Block は失敗しても送り直さない。
+     *
+     * 外すのと投函は分けない。分けると、間に記録された Block や、投函に失敗した Block を取り消せなくなる。
+     * 残った Block が Undo を追い越すと、解除したのに相手にはブロックが残る
+     *
+     * @param undoBody 送った Block の id から Undo のアクティビティを作る。null なら Undo は積まない
+     * @return Undo を積んだら true
      */
-    fun remove(accountId: AccountId, actorUri: String): String?
+    fun remove(accountId: AccountId, actorUri: String, now: Instant, undoBody: (blockActivityId: String) -> String?): Boolean
 
     /**
      * 相手に送った Block の id。ブロックしていないか、まだ送っていなければ null

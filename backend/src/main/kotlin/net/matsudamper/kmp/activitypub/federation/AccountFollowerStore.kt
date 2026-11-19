@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.federation
 
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.logic.NotificationRecorder
+import net.matsudamper.kmp.activitypub.logic.ServerHost
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.NotificationActorRef
 import net.matsudamper.kmp.activitypub.repository.NotificationEvent
@@ -36,6 +37,7 @@ internal class AccountFollowerStore(
                 publicKeyPem = follower.publicKeyPem,
                 profile = follower.profile.toRecord(),
             ),
+            followerHost = ServerHost.ofUri(follower.actorId),
             followActivityUri = followActivityUri,
             receivedAt = receivedAt,
             acceptBody = acceptBody,

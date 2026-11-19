@@ -52,18 +52,12 @@ class ActorBlockService(
     /**
      * ブロックしていなくても成功する。相手に Block を送っていれば取り消す
      */
-    suspend fun unblock(accountId: AccountId?, actorUri: String): UnblockActorResult {
+    fun unblock(accountId: AccountId?, actorUri: String): UnblockActorResult {
         if (accountId == null || accounts.findById(accountId) == null) return UnblockActorResult.NotLoggedIn
-        val blockActivityId = actorBlocks.remove(accountId, actorUri)
-        if (blockActivityId != null) {
-            try {
-                delivery.undoBlock(accountId, actorUri, blockActivityId)
-            } catch (failure: CancellationException) {
-                throw failure
-            } catch (failure: Exception) {
-                logger.warn("ブロックを解除したが相手のサーバーに伝えられなかった: $actorUri", failure)
-            }
+        val undoEnqueued = actorBlocks.remove(accountId, actorUri, clock.instant()) { blockActivityId ->
+            delivery.undoBlockBody(accountId, actorUri, blockActivityId)
         }
+        if (undoEnqueued) delivery.onEnqueued()
         return UnblockActorResult.Unblocked
     }
 }

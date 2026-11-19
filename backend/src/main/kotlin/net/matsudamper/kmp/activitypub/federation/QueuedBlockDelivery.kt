@@ -6,7 +6,6 @@ import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.BlockDelivery
 import net.matsudamper.kmp.activitypub.logic.BlockLists
 import net.matsudamper.kmp.activitypub.repository.ActorBlockRepository
-import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
@@ -26,10 +25,9 @@ internal class QueuedBlockDelivery(
     private val storedActors: RemoteActorRepository,
     private val actorBlocks: ActorBlockRepository,
     private val followers: FollowerRepository,
-    private val queue: DeliveryQueueRepository,
     private val blockLists: BlockLists,
     private val clock: Clock,
-    private val onEnqueued: () -> Unit,
+    private val wakeUpQueue: () -> Unit,
 ) : BlockDelivery {
     private val logger = LoggerFactory.getLogger(QueuedBlockDelivery::class.java)
 
@@ -48,7 +46,7 @@ internal class QueuedBlockDelivery(
             body = AppJson.encodeToString(OutgoingActivity.serializer(), block),
             now = clock.instant(),
         )
-        if (recorded) onEnqueued()
+        if (recorded) wakeUpQueue()
     }
 
     override fun rejectBlockedFollowers(accountId: AccountId) {
@@ -67,16 +65,18 @@ internal class QueuedBlockDelivery(
                 now = clock.instant(),
             )
         }
-        if (blockedFollows.isNotEmpty()) onEnqueued()
+        if (blockedFollows.isNotEmpty()) wakeUpQueue()
     }
 
-    override suspend fun undoBlock(accountId: AccountId, actorUri: String, blockActivityId: String) {
-        val senderActorId = senderActorId(accountId) ?: return
-        val inbox = findInbox(actorUri) ?: return
+    override fun undoBlockBody(accountId: AccountId, actorUri: String, blockActivityId: String): String? {
+        val senderActorId = senderActorId(accountId) ?: return null
         val block = BlockActivities.block(blockActivityId, senderActorId, actorUri)
         val undo = BlockActivities.undo("$senderActorId#undo/${UUID.randomUUID()}", block)
-        queue.cancelPendingBlockAndEnqueueUndo(accountId, inbox, blockActivityId, AppJson.encodeToString(OutgoingActivity.serializer(), undo), clock.instant())
-        onEnqueued()
+        return AppJson.encodeToString(OutgoingActivity.serializer(), undo)
+    }
+
+    override fun onEnqueued() {
+        wakeUpQueue()
     }
 
     private fun senderActorId(accountId: AccountId): String? {

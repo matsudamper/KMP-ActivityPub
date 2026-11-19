@@ -23,6 +23,7 @@ internal class FakeFollowerRepository : FollowerRepository {
     override fun record(
         username: String,
         follower: RemoteActorRecord,
+        followerHost: String?,
         followActivityUri: String,
         receivedAt: Instant,
         acceptBody: String,
