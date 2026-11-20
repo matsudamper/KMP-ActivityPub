@@ -480,6 +480,7 @@ internal class Federation(
                         stamps = stamps,
                         boosts = boosts,
                     ),
+                    domain = domain,
                 ),
                 domainBlocks = NoInboxDomainBlocks,
                 handlers = listOf(
