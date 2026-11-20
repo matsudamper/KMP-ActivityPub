@@ -1,0 +1,2 @@
+HSPLnet/matsudamper/kmp/activitypub/**->**(**)**
+HSPLcoil3/**->**(**)**
