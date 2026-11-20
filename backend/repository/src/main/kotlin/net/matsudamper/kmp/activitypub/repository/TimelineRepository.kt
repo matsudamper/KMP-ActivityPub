@@ -13,6 +13,24 @@ interface TimelineRepository {
     fun receive(note: RemoteNoteInput): TimelinePosition?
 
     /**
+     * 保存済みの投稿者が [expectedAuthorUri] のときだけ [receive] する。null は保存していないことを表す。
+     * 見比べと書き込みは同じトランザクションで行う。
+     *
+     * 保存済みの投稿者が [RemoteNoteInput.actorUri] と違うのは、別のアクターが先に同じ id で送った偽の投稿を、
+     * 投稿のあるサーバーに確かめて本来の投稿者のものと判断したとき。偽の投稿の行は消して、届いた投稿を保存し直す。
+     * 行を消すと、タイムラインの配布先も、このサーバーのアカウントのブーストを取り消す宛先も引けなくなるので、
+     * 呼ぶ前に [AccountBoostRepository.deleteRemoteNoteAndUndoBoosts] で削除済みにしておくこと
+     */
+    fun receive(note: RemoteNoteInput, expectedAuthorUri: String?): AuthorCheckedWrite<TimelinePosition?>
+
+    /**
+     * 保存済みの投稿の投稿者。削除済みの印が付いた投稿も含む
+     *
+     * @return 保存していなければ null
+     */
+    fun findRemoteNoteAuthor(objectUri: String): String?
+
+    /**
      * ブーストした相手をフォローしているアカウントが居なければ記録しない。
      * ブーストされた投稿が未保存なら一緒に保存する
      *
@@ -43,6 +61,12 @@ interface TimelineRepository {
      *   保存していないか、消されているか、[RemoteNoteInput.actorUri] の投稿でないか、何も変えなかったら空
      */
     fun reviseRemote(note: RemoteNoteInput): List<String>
+
+    /**
+     * 保存済みの投稿者が [expectedAuthorUri] のときだけ [reviseRemote] する。null は保存していないことを表す。
+     * 見比べと書き込みは同じトランザクションで行う
+     */
+    fun reviseRemote(note: RemoteNoteInput, expectedAuthorUri: String?): AuthorCheckedWrite<List<String>>
 
     /**
      * [viewablePost] で [viewer] が開ける投稿の版を、新しい順に返す。最初が今の版。編集されていなければ今の版だけ。

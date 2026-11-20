@@ -172,7 +172,7 @@ internal class Federation(
         timeline,
         notificationService,
         Clock.systemUTC(),
-        deleteRemoteNote = { actorUri, objectUri -> boostService.deleteRemoteNote(actorUri, objectUri) },
+        deleteRemoteNote = { actorUri, objectUri, expectedAuthorUri -> boostService.deleteRemoteNote(actorUri, objectUri, expectedAuthorUri) },
     )
     private val boosts = RecordedBoosts(boostRepository, receivedNotes, notificationService, inboxBlocks, timeline, Clock.systemUTC())
 
@@ -524,17 +524,19 @@ internal class Federation(
                         remoteNotes = remoteNotes,
                         approvals = quoteApprovals,
                     ),
-                    UpdateHandler(actors = UpdateActorHandler(followers), notes = receivedNotes, unknownTypes = unknownTypes),
+                    UpdateHandler(actors = UpdateActorHandler(followers), notes = receivedNotes, unknownTypes = unknownTypes, remoteNotes = remoteNotes),
                     CreateNoteHandler(
                         notes = receivedNotes,
                         pollVotes = RecordedPollVotes(domain = domain, polls = pollRepository, blocks = inboxBlocks, timeline = timeline, clock = Clock.systemUTC()),
                         unknownTypes = unknownTypes,
+                        remoteNotes = remoteNotes,
                     ),
                     FollowResponseHandler("Accept", followingResponses),
                     FollowResponseHandler("Reject", followingResponses),
                     DeleteHandler(
                         actors = DeleteActorHandler(followers = followers, favourites = favourites, stamps = stamps, boosts = boosts),
                         notes = receivedNotes,
+                        remoteNotes = remoteNotes,
                     ),
                 ),
             ),

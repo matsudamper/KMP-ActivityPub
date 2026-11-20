@@ -4,6 +4,7 @@ import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.AccountBoostPosition
 import net.matsudamper.kmp.activitypub.repository.AccountBoostRecord
 import net.matsudamper.kmp.activitypub.repository.AccountBoostRepository
+import net.matsudamper.kmp.activitypub.repository.AuthorCheckedWrite
 import net.matsudamper.kmp.activitypub.repository.BoostTarget
 import net.matsudamper.kmp.activitypub.repository.OutgoingBoost
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteDeletion
@@ -108,20 +109,28 @@ internal class SqliteAccountBoostRepository(
     }
 
     override fun deleteRemoteNoteAndUndoBoosts(actorUri: String, objectUri: String, now: Instant): RemoteNoteDeletion {
-        return jooq.transaction { dsl ->
-            val remoteNoteIds = dsl.select(REMOTE_NOTES.ID).from(REMOTE_NOTES)
-                .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
-                .where(REMOTE_NOTES.OBJECT_URI.eq(objectUri))
-                .and(REMOTE_ACTORS.ACTOR_URI.eq(actorUri))
-                .fetch(REMOTE_NOTES.ID)
-                .filterNotNull()
-            if (remoteNoteIds.isEmpty()) return@transaction RemoteNoteDeletion(undoneBoostCount = 0, deletedTimelineMembers = listOf())
-            val undone = dsl.undoAccountBoosts(ACCOUNT_BOOSTS.REMOTE_NOTE_ID.`in`(remoteNoteIds), now)
-            RemoteNoteDeletion(
-                undoneBoostCount = undone,
-                deletedTimelineMembers = dsl.markRemoteNoteDeleted(actorUri = actorUri, objectUri = objectUri, deletedAt = now),
-            )
+        return jooq.transaction { dsl -> deleteRemoteNoteAndUndoBoosts(dsl, actorUri, objectUri, now) }
+    }
+
+    override fun deleteRemoteNoteAndUndoBoosts(actorUri: String, objectUri: String, now: Instant, expectedAuthorUri: String?): AuthorCheckedWrite<RemoteNoteDeletion> =
+        jooq.transaction { dsl ->
+            if (dsl.remoteNoteAuthor(objectUri) != expectedAuthorUri) return@transaction AuthorCheckedWrite.AuthorChanged
+            AuthorCheckedWrite.Written(deleteRemoteNoteAndUndoBoosts(dsl, actorUri, objectUri, now))
         }
+
+    private fun deleteRemoteNoteAndUndoBoosts(dsl: DSLContext, actorUri: String, objectUri: String, now: Instant): RemoteNoteDeletion {
+        val remoteNoteIds = dsl.select(REMOTE_NOTES.ID).from(REMOTE_NOTES)
+            .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
+            .where(REMOTE_NOTES.OBJECT_URI.eq(objectUri))
+            .and(REMOTE_ACTORS.ACTOR_URI.eq(actorUri))
+            .fetch(REMOTE_NOTES.ID)
+            .filterNotNull()
+        if (remoteNoteIds.isEmpty()) return RemoteNoteDeletion(undoneBoostCount = 0, deletedTimelineMembers = listOf())
+        val undone = dsl.undoAccountBoosts(ACCOUNT_BOOSTS.REMOTE_NOTE_ID.`in`(remoteNoteIds), now)
+        return RemoteNoteDeletion(
+            undoneBoostCount = undone,
+            deletedTimelineMembers = dsl.markRemoteNoteDeleted(actorUri = actorUri, objectUri = objectUri, deletedAt = now),
+        )
     }
 
     override fun listForOutbox(username: String, after: AccountBoostPosition?, limit: Int): List<AccountBoostRecord> = jooq.withConnection { dsl ->

@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.logic
 import java.time.Clock
 import java.util.UUID
 import net.matsudamper.kmp.activitypub.repository.AccountBoostRepository
+import net.matsudamper.kmp.activitypub.repository.AuthorCheckedWrite
 import net.matsudamper.kmp.activitypub.repository.BoostTarget
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.NotificationActorRef
@@ -95,10 +96,16 @@ class BoostService(
      * 投稿者が消した他のサーバーの投稿に削除済みの印を付け、その投稿へのこのサーバーのアカウントのブーストを外して Undo を積む。
      * 投稿者の Delete はこちらのフォロワーのサーバーに届くとは限らず、届かないと消えた投稿のブーストが残る
      *
-     * @return 削除済みになったタイムラインの member
+     * 保存済みの投稿者が [expectedAuthorUri] のときだけ消す。null は保存していないことを表す
+     *
+     * @return 削除済みになったタイムラインの member。保存済みの投稿者が食い違って消さなかったら null
      */
-    fun deleteRemoteNote(actorUri: String, objectUri: String): List<String> {
-        val deletion = boosts.deleteRemoteNoteAndUndoBoosts(actorUri = actorUri, objectUri = objectUri, now = clock.instant())
+    fun deleteRemoteNote(actorUri: String, objectUri: String, expectedAuthorUri: String?): List<String>? {
+        val written = boosts.deleteRemoteNoteAndUndoBoosts(actorUri = actorUri, objectUri = objectUri, now = clock.instant(), expectedAuthorUri = expectedAuthorUri)
+        val deletion = when (written) {
+            is AuthorCheckedWrite.Written -> written.value
+            AuthorCheckedWrite.AuthorChanged -> return null
+        }
         if (deletion.undoneBoostCount > 0) onEnqueued()
         return deletion.deletedTimelineMembers
     }

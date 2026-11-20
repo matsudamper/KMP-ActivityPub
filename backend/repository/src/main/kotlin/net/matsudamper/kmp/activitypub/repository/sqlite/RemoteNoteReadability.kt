@@ -64,6 +64,12 @@ internal fun DSLContext.remoteNoteReadableOrBoostedTo(accountId: AccountId): Con
         selectOne().from(REMOTE_BOOSTS).where(REMOTE_BOOSTS.REMOTE_NOTE_ID.eq(REMOTE_NOTES.ID)).and(remoteBoostReadable()),
     )
 
+internal fun DSLContext.remoteNoteAuthor(objectUri: String): String? =
+    select(REMOTE_ACTORS.ACTOR_URI).from(REMOTE_NOTES)
+        .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
+        .where(REMOTE_NOTES.OBJECT_URI.eq(objectUri))
+        .fetchOne(REMOTE_ACTORS.ACTOR_URI)
+
 /**
  * 投稿者が消した投稿に印を付ける。タイムラインに削除済みと出すので行は残す。投稿が [actorUri] のものでなければ何もしない
  *

@@ -38,6 +38,12 @@ interface AccountBoostRepository {
     fun deleteRemoteNoteAndUndoBoosts(actorUri: String, objectUri: String, now: Instant): RemoteNoteDeletion
 
     /**
+     * 保存済みの投稿者が [expectedAuthorUri] のときだけ [deleteRemoteNoteAndUndoBoosts] する。null は保存していないことを表す。
+     * 見比べと書き込みは同じトランザクションで行う
+     */
+    fun deleteRemoteNoteAndUndoBoosts(actorUri: String, objectUri: String, now: Instant, expectedAuthorUri: String?): AuthorCheckedWrite<RemoteNoteDeletion>
+
+    /**
      * outbox に出すブースト。新しい順で、同じ時刻なら Announce の id の大きい順
      *
      * @param after ここより古いものを返す。null なら先頭から

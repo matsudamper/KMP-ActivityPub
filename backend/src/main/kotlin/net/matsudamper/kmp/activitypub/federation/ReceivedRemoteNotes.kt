@@ -6,6 +6,7 @@ import java.time.Instant
 import io.opentelemetry.api.OpenTelemetry
 import io.opentelemetry.api.trace.Span
 import net.matsudamper.kmp.activitypub.logic.NotificationRecorder
+import net.matsudamper.kmp.activitypub.repository.AuthorCheckedWrite
 import net.matsudamper.kmp.activitypub.repository.NotificationActorRef
 import net.matsudamper.kmp.activitypub.repository.NotificationEvent
 import net.matsudamper.kmp.activitypub.repository.NotificationPostRef
@@ -44,23 +45,37 @@ internal class ReceivedRemoteNotes(
     private val timeline: TimelineService,
     private val notifications: NotificationRecorder,
     private val clock: Clock,
-    private val deleteRemoteNote: (actorUri: String, objectUri: String) -> List<String>,
+    private val deleteRemoteNote: (actorUri: String, objectUri: String, expectedAuthorUri: String?) -> List<String>?,
     openTelemetry: OpenTelemetry = OpenTelemetryInitializer.get(),
 ) : RemoteNoteStore {
     private val tracer = openTelemetry.getTracer("activitypub-inbox")
 
-    override suspend fun save(note: ReceivedNote) {
-        inOpenTelemetrySuspendSpan(tracer, "Inbox.Create", false) { span -> saveInSpan(note, span) }
-    }
+    override suspend fun findAttributedTo(noteId: String): String? = repository.findRemoteNoteAuthor(noteId)
 
-    override suspend fun update(note: ReceivedNote) {
+    override suspend fun save(note: ReceivedNote, expectedAttributedTo: String?): Boolean =
+        inOpenTelemetrySuspendSpan(tracer, "Inbox.Create", false) { span -> saveInSpan(note, expectedAttributedTo, span) }
+
+    override suspend fun update(note: ReceivedNote, expectedAttributedTo: String?): Boolean {
+        // 保存済みの投稿は先に届いた偽の投稿で、kotpub が投稿のあるサーバーに確かめて本来の投稿者だと判断した。
+        // 偽の投稿を編集しても本来の投稿にはならないので、届いた投稿を Create と同じく保存し直す
+        if (expectedAttributedTo != null && expectedAttributedTo != note.attributedTo) return save(note, expectedAttributedTo)
         // 宛先は変えないので、このサーバーの宛先は引かない
         val revised = note.toRemoteNoteInput(localRecipients = setOf(), now = clock.instant())
-        timeline.publishUpdated(repository.reviseRemote(revised))
+        return when (val written = repository.reviseRemote(revised, expectedAuthorUri = expectedAttributedTo)) {
+            is AuthorCheckedWrite.Written -> {
+                timeline.publishUpdated(written.value)
+                true
+            }
+
+            AuthorCheckedWrite.AuthorChanged -> false
+        }
     }
 
-    override suspend fun delete(actorId: String, objectId: String) {
-        timeline.publishDeleted(deleteRemoteNote(actorId, objectId))
+    override suspend fun delete(actorId: String, objectId: String, expectedAttributedTo: String?): Boolean {
+        // 保存済みの投稿者と食い違う Delete も、kotpub が投稿のあるサーバーに確かめて受けている。保存済みの投稿者の投稿として消す
+        val deleted = deleteRemoteNote(expectedAttributedTo ?: actorId, objectId, expectedAttributedTo) ?: return false
+        timeline.publishDeleted(deleted)
+        return true
     }
 
     /**
@@ -158,26 +173,34 @@ internal class ReceivedRemoteNotes(
         return null
     }
 
-    private suspend fun saveInSpan(note: ReceivedNote, span: Span) {
+    private suspend fun saveInSpan(note: ReceivedNote, expectedAttributedTo: String?, span: Span): Boolean {
         span.setAttribute(InboxSpan.OBJECT_URI, note.id)
         span.setAttribute(InboxSpan.ACTOR, note.attributedTo)
         span.setAttribute(InboxSpan.SAVED, false)
         span.setAttribute(InboxSpan.OUTCOME, "discarded")
+        if (expectedAttributedTo != null && expectedAttributedTo != note.attributedTo) {
+            // 保存済みの投稿は先に届いた偽の投稿。届いた投稿を受け取らないときも残さないよう、受け取るかを決める前に消す
+            val deleted = deleteRemoteNote(expectedAttributedTo, note.id, expectedAttributedTo) ?: return false
+            timeline.publishDeleted(deleted)
+        }
         val recipients = localUsernamesOf(note.to + note.cc).filterNot { blocks.blocks(it, note.attributedTo) }.toSet()
         val interest = repository.receptionInterest(note.attributedTo, recipients)
         span.setAttribute(InboxSpan.FOLLOWING_ACCOUNT_COUNT, interest.followingAccountCount)
         span.setAttribute(InboxSpan.LOCAL_RECIPIENT_COUNT, interest.localRecipientCount)
         if (!interest.shouldReceive) {
             span.setAttribute(InboxSpan.DISCARD_REASON, "not_followed_and_not_addressed")
-            return
+            return true
         }
         val now = clock.instant()
         val actorReason = storeActorIfMissing(note.attributedTo, now)
         if (actorReason != null) {
             span.setAttribute(InboxSpan.DISCARD_REASON, actorReason)
-            return
+            return true
         }
-        val position = repository.receive(note.toRemoteNoteInput(localRecipients = recipients, now = now))
+        val position = when (val written = repository.receive(note.toRemoteNoteInput(localRecipients = recipients, now = now), expectedAuthorUri = expectedAttributedTo)) {
+            is AuthorCheckedWrite.Written -> written.value
+            AuthorCheckedWrite.AuthorChanged -> return false
+        }
         if (position != null) {
             span.setAttribute(InboxSpan.SAVED, true)
             span.setAttribute(InboxSpan.OUTCOME, "saved")
@@ -188,6 +211,7 @@ internal class ReceivedRemoteNotes(
             val reason = if (repository.hasRemoteNote(note.id)) "duplicate" else "no_eligible_recipient_or_actor"
             span.setAttribute(InboxSpan.DISCARD_REASON, reason)
         }
+        return true
     }
 }
 
