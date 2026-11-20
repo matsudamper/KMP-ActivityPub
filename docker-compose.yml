@@ -20,8 +20,8 @@ services:
       ENABLE_PASSKEY: "true"
       # ENABLE_PASSKEY が true なら必須。後から変えると登録済みのパスキーが使えなくなる
       PASSKEY_RP_ID: example.com
-      # カンマ区切り。書かなければ https://<PASSKEY_RP_ID>
-      # PASSKEY_ORIGINS: https://example.com
+      # ENABLE_PASSKEY が true なら必須。カンマ区切り
+      PASSKEY_ORIGINS: https://example.com
       # Android アプリでパスキーを使うとき。/.well-known/assetlinks.json を返し、アプリの origin を受け付ける
       # PASSKEY_ANDROID_PACKAGE_NAME: net.matsudamper.kmp.activitypub
       # アプリの署名証明書の SHA-256。カンマ区切り
@@ -30,8 +30,8 @@ services:
       DOMAIN: example.com
       # 管理画面に入れるユーザーの id。カンマ区切り
       # ADMIN_USER_IDS: "1"
-      # Cloudflare の後ろに置くとき。CF-Connecting-IP を接続元として使う。Cloudflare を通らずに届く経路があってはいけない
-      # TRUST_CF_CONNECTING_IP: "true"
+      # 必須。Cloudflare の後ろに置くなら true にして CF-Connecting-IP を接続元として使う。Cloudflare を通らずに届く経路があってはいけない
+      TRUST_CF_CONNECTING_IP: "false"
       # 必須。他のサーバーのプロフィール画像を中継する URL の署名鍵。署名の無い URL は中継しない。
       # 変えると中継 URL が全部変わり、Cloudflare のキャッシュに当たらなくなる
       #   openssl rand -base64 32
@@ -50,7 +50,6 @@ services:
       # S3_AUDIENCE: kmp-activitypub
       # S3_ENDPOINT: https://s3.example.com
       # STS_ENDPOINT: https://sts.example.com
-      # 既定は true
       # S3_PATH_STYLE_ACCESS: "true"
       # S3_ROLE_SESSION_NAME: kmp-activitypub-image-upload
       # OpenTelemetry の送り先。未設定だと localhost:4318 に送ろうとして失敗し続ける
