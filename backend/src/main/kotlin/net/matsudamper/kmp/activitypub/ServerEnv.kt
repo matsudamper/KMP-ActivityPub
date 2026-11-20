@@ -15,14 +15,14 @@ import net.matsudamper.kmp.activitypub.shared.AccountId
 class ServerEnv(
     private val env: Map<String, String> = System.getenv(),
 ) {
-    val host: String = env["HOST"]?.ifEmpty { null } ?: "0.0.0.0"
-    val port: Int = env["PORT"]?.ifEmpty { null }?.toInt() ?: 8080
+    val host: String = required("HOST")
+    val port: Int = required("PORT").toInt()
 
     /**
      * 空を未設定として扱わないと、カレントディレクトリを配信してしまう
      */
     val staticSrcDir: Path? = env["STATIC_SRC_DIR"]?.ifEmpty { null }?.let { Path(it) }
-    val dbPath: Path = Path(env["DB_PATH"]?.ifEmpty { null } ?: "./data/kmp-activitypub.db")
+    val dbPath: Path = Path(required("DB_PATH"))
 
     /**
      * `@user@example.com` の example.com。未設定なら他のサーバーから見つけられない
@@ -37,25 +37,24 @@ class ServerEnv(
     /**
      * true のまま http で開くとログインできない
      */
-    val cookieSecure: Boolean = booleanOf("COOKIE_SECURE") ?: true
+    val cookieSecure: Boolean = requiredBoolean("COOKIE_SECURE")
 
     /**
      * Cloudflare の後ろに置くと接続元が Cloudflare の IP になるので、CF-Connecting-IP を接続元として使う。
      * Cloudflare を通らずに直接届く経路があると、ヘッダーを偽って他人の IP を名乗れる
      */
-    val trustCfConnectingIp: Boolean = booleanOf("TRUST_CF_CONNECTING_IP") ?: false
+    val trustCfConnectingIp: Boolean = requiredBoolean("TRUST_CF_CONNECTING_IP")
 
     /**
      * 他のサーバーのプロフィール画像を中継する URL の署名に使う。署名が無いと、誰でも任意の URL をこのサーバーに取りに行かせられる。
      * 変えると中継 URL が全部変わり、Cloudflare のキャッシュに当たらなくなる
      */
-    val remoteIconProxySecret: String =
-        requireNotNull(env["REMOTE_ICON_PROXY_SECRET"]?.ifEmpty { null }) { "REMOTE_ICON_PROXY_SECRET を設定すること" }
+    val remoteIconProxySecret: String = required("REMOTE_ICON_PROXY_SECRET")
 
     /**
      * 書き忘れでパスキーが黙って無効にならないよう、true か false を必ず書かせる
      */
-    val enablePasskey: Boolean = requireNotNull(booleanOf("ENABLE_PASSKEY")) { "ENABLE_PASSKEY を true か false で設定すること" }
+    val enablePasskey: Boolean = requiredBoolean("ENABLE_PASSKEY")
 
     /**
      * Android アプリのパスキーを受け付けるときに設定する。
@@ -76,8 +75,8 @@ class ServerEnv(
         }
 
     /**
-     * ENABLE_PASSKEY が true なら PASSKEY_RP_ID は必須。
-     * PASSKEY_ORIGINS はカンマ区切りで、無ければ https://<PASSKEY_RP_ID> だけを受け付ける。
+     * ENABLE_PASSKEY が true なら PASSKEY_RP_ID と PASSKEY_ORIGINS は必須。
+     * PASSKEY_ORIGINS はカンマ区切りで書く。
      * Android アプリの origin は [passkeyAndroidApp] から足す
      */
     val passkeyRelyingParty: PasskeyRelyingParty? =
@@ -97,7 +96,7 @@ class ServerEnv(
             ?.toSet()
             .orEmpty()
 
-    val enableS3: Boolean = requireNotNull(booleanOf("ENABLE_S3")) { "ENABLE_S3 を true か false で設定すること" }
+    val enableS3: Boolean = requiredBoolean("ENABLE_S3")
 
     /**
      * 画像を S3 に置く。認証情報は、このサーバーを OIDC の IdP にして発行したトークンを STS に渡して受け取る。
@@ -107,18 +106,18 @@ class ServerEnv(
         if (enableS3) {
             S3Env(
                 oidc = OidcEnv(
-                    issuer = OidcIssuer(requireNotNull(env["OIDC_ISSUER"]?.ifEmpty { null }) { "OIDC_ISSUER が未設定です" }),
-                    privateJwkJson = requireNotNull(env["OIDC_JWK_PRIVATE"]?.ifEmpty { null }) { "OIDC_JWK_PRIVATE が未設定です" },
+                    issuer = OidcIssuer(required("OIDC_ISSUER")),
+                    privateJwkJson = required("OIDC_JWK_PRIVATE"),
                 ),
                 imageStorage = S3ImageStorageConfig(
-                    endpoint = URI(requireNotNull(env["S3_ENDPOINT"]?.ifEmpty { null }) { "S3_ENDPOINT が未設定です" }),
-                    stsEndpoint = URI(requireNotNull(env["STS_ENDPOINT"]?.ifEmpty { null }) { "STS_ENDPOINT が未設定です" }),
-                    region = requireNotNull(env["S3_REGION"]?.ifEmpty { null }) { "S3_REGION が未設定です" },
-                    bucket = requireNotNull(env["S3_BUCKET"]?.ifEmpty { null }) { "S3_BUCKET が未設定です" },
-                    roleArn = requireNotNull(env["S3_ROLE_ARN"]?.ifEmpty { null }) { "S3_ROLE_ARN が未設定です" },
-                    roleSessionName = env["S3_ROLE_SESSION_NAME"]?.ifEmpty { null } ?: "kmp-activitypub-image-upload",
-                    audience = requireNotNull(env["S3_AUDIENCE"]?.ifEmpty { null }) { "S3_AUDIENCE が未設定です" },
-                    pathStyleAccess = booleanOf("S3_PATH_STYLE_ACCESS") ?: true,
+                    endpoint = URI(required("S3_ENDPOINT")),
+                    stsEndpoint = URI(required("STS_ENDPOINT")),
+                    region = required("S3_REGION"),
+                    bucket = required("S3_BUCKET"),
+                    roleArn = required("S3_ROLE_ARN"),
+                    roleSessionName = required("S3_ROLE_SESSION_NAME"),
+                    audience = required("S3_AUDIENCE"),
+                    pathStyleAccess = requiredBoolean("S3_PATH_STYLE_ACCESS"),
                 ),
             )
         } else {
@@ -126,26 +125,28 @@ class ServerEnv(
         }
 
     private fun createPasskeyRelyingParty(): PasskeyRelyingParty {
-        val rpId = requireNotNull(env["PASSKEY_RP_ID"]?.ifEmpty { null }) { "PASSKEY_RP_ID を設定すること" }
+        val rpId = required("PASSKEY_RP_ID")
         val webOrigins =
-            env["PASSKEY_ORIGINS"]
-                ?.ifEmpty { null }
-                ?.split(',')
-                ?.map { it.trim() }
-                ?.filter { it.isNotEmpty() }
-                ?.toSet()
-                ?: setOf("https://$rpId")
+            required("PASSKEY_ORIGINS")
+                .split(',')
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .toSet()
+                .ifEmpty { throw IllegalArgumentException("PASSKEY_ORIGINS を設定すること") }
         return PasskeyRelyingParty(
             id = rpId,
             origins = webOrigins + passkeyAndroidApp?.origins.orEmpty(),
         )
     }
 
-    private fun booleanOf(name: String): Boolean? =
-        env[name]?.ifEmpty { null }?.let { raw ->
-            raw.lowercase().toBooleanStrictOrNull()
-                ?: throw IllegalArgumentException("$name は true か false にすること: $raw")
-        }
+    private fun required(name: String): String =
+        requireNotNull(env[name]?.ifEmpty { null }) { "$name を設定すること" }
+
+    private fun requiredBoolean(name: String): Boolean {
+        val raw = required(name)
+        return raw.lowercase().toBooleanStrictOrNull()
+            ?: throw IllegalArgumentException("$name は true か false にすること: $raw")
+    }
 }
 
 class S3Env(
