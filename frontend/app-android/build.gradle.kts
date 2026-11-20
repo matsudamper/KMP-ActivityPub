@@ -45,6 +45,13 @@ android {
         named("debug") {
             signingConfig = signingConfigs.findByName("sharedDebug") ?: signingConfigs.getByName("debug")
         }
+        // ストア配布はしないので、インストール済みの Debug ビルドと同じ鍵で署名する
+        named("release") {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.findByName("sharedDebug") ?: signingConfigs.getByName("debug")
+        }
     }
 
     buildFeatures {
