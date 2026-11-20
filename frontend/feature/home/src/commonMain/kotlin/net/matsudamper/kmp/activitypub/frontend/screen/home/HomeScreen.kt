@@ -979,8 +979,56 @@ internal fun SearchTabContent(
             hasError = false,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
         )
-        SearchTargetTabRow(targets = search.targets)
-        when (val result = search.result) {
+        val selectedTargetIndex = search.targets.indexOfFirst { it.selected }.coerceAtLeast(0)
+        val latestTargets by rememberUpdatedState(search.targets)
+        val pagerState = rememberPagerState(initialPage = selectedTargetIndex) { latestTargets.size }
+        LaunchedEffect(pagerState, selectedTargetIndex) {
+            // 途中で止まったアニメーションのずれが残るので、ページの番号だけでなくずれも見る
+            val pageSettledOnSelected = pagerState.currentPage == selectedTargetIndex && pagerState.currentPageOffsetFraction == 0f
+            if (!pageSettledOnSelected) {
+                pagerState.animateScrollToPage(selectedTargetIndex)
+            }
+        }
+        LaunchedEffect(pagerState) {
+            snapshotFlow { pagerState.settledPage }
+                .collect { settledPage ->
+                    val settledTarget = latestTargets.getOrNull(settledPage) ?: return@collect
+                    if (!settledTarget.selected) {
+                        settledTarget.listener.onClick()
+                    }
+                }
+        }
+        SearchTargetTabRow(targets = search.targets, selectedTabIndex = pagerState.currentPage)
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.weight(1f),
+        ) { pageIndex ->
+            // 結果は選んでいる対象の分しか持たないので、ほかのページはスワイプの途中だけ空で見せる
+            if (pageIndex == selectedTargetIndex) {
+                SearchResultContent(
+                    listState = listState,
+                    result = search.result,
+                    listener = listener,
+                    shareButtonVisible = shareButtonVisible,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                Box(modifier = Modifier.fillMaxSize())
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchResultContent(
+    listState: LazyListState,
+    result: HomeScreenUiState.SearchResult,
+    listener: HomeScreenUiState.Listener,
+    shareButtonVisible: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier) {
+        when (result) {
             HomeScreenUiState.SearchResult.NotSearched -> Unit
 
             HomeScreenUiState.SearchResult.Loading -> {
@@ -1046,9 +1094,10 @@ internal fun SearchTabContent(
 @Composable
 private fun SearchTargetTabRow(
     targets: List<HomeScreenUiState.SearchTarget>,
+    selectedTabIndex: Int,
 ) {
     SecondaryTabRow(
-        selectedTabIndex = targets.indexOfFirst { it.selected }.coerceAtLeast(0),
+        selectedTabIndex = selectedTabIndex,
         modifier = Modifier.fillMaxWidth(),
     ) {
         targets.forEach { target ->
