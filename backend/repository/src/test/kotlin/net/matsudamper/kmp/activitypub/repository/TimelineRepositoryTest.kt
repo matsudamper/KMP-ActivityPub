@@ -78,13 +78,36 @@ class TimelineRepositoryTest {
         val original = note("1", "public", setOf())
         assertNull(repository.findRemoteNoteAuthor(original.objectUri))
         assertEquals(AuthorCheckedWrite.AuthorChanged, repository.receive(original, expectedAuthorUri = ACTOR))
-        val saved = assertNotNull((repository.receive(original, expectedAuthorUri = null) as AuthorCheckedWrite.Written).value)
+        val saved = assertNotNull((repository.receive(original, expectedAuthorUri = null) as AuthorCheckedWrite.Written).value.position)
         assertEquals(ACTOR, repository.findRemoteNoteAuthor(original.objectUri))
 
         val edited = original.copy(contentHtml = "<p>編集</p>", editedAt = NOW.plusSeconds(10))
         assertEquals(AuthorCheckedWrite.AuthorChanged, repository.reviseRemote(edited, expectedAuthorUri = null))
         assertEquals(AuthorCheckedWrite.AuthorChanged, repository.reviseRemote(edited, expectedAuthorUri = "https://other.example/actor"))
         assertEquals(AuthorCheckedWrite.Written(listOf(saved.member)), repository.reviseRemote(edited, expectedAuthorUri = ACTOR))
+    }
+
+    @Test
+    fun 本来の投稿者の投稿と判断したら先に保存した偽の投稿を置き換える() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        val alice = accounts.getValue("alice")
+        val forger = "https://remote.example/forger"
+        repositories.remoteActorRepository.save(
+            RemoteActorRecord(forger, "$forger/inbox", null, "key", RemoteActorProfileRecord("forger", "Forger", null, null, null, listOf(), null, listOf())),
+            NOW,
+        )
+        repositories.followingRepository.add(alice, ACTOR, NOW)
+        repositories.followingRepository.add(alice, forger, NOW)
+        val genuine = note("1", "public", setOf())
+        val forged = assertNotNull((repository.receive(genuine.copy(actorUri = forger, contentHtml = "<p>偽</p>"), expectedAuthorUri = null) as AuthorCheckedWrite.Written).value.position)
+        assertEquals(forger, repository.findRemoteNoteAuthor(genuine.objectUri))
+
+        val reception = (repository.receive(genuine, expectedAuthorUri = forger) as AuthorCheckedWrite.Written).value
+        assertEquals(listOf(forged.member), reception.replacedMembers)
+        val replaced = assertNotNull(reception.position)
+        assertEquals(ACTOR, repository.findRemoteNoteAuthor(genuine.objectUri))
+        assertEquals("<p>本文</p>", repository.hydrate(alice, listOf(replaced.member)).single().contentHtml)
+        assertTrue(repository.hydrate(alice, listOf(forged.member)).isEmpty())
     }
 
     @Test

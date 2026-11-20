@@ -26,6 +26,7 @@ import net.matsudamper.kmp.activitypub.repository.NotificationEvent
 import net.matsudamper.kmp.activitypub.repository.NotificationPostRef
 import net.matsudamper.kmp.activitypub.repository.RemoteMediaKind
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
+import net.matsudamper.kmp.activitypub.repository.RemoteNoteReception
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteReceptionInterest
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.repository.TimelinePostImage
@@ -217,8 +218,12 @@ class RemoteNoteReceptionTest {
             val fixture = Fixture(OpenTelemetry.noop())
             val stored = fixture.repositories.timelineRepository
             val repository = object : TimelineRepository by stored {
-                override fun receive(note: RemoteNoteInput, expectedAuthorUri: String?): AuthorCheckedWrite<TimelinePosition?> =
-                    if (stored.hasRemoteNote(note.objectUri)) AuthorCheckedWrite.Written(null) else stored.receive(note, expectedAuthorUri)
+                override fun receive(note: RemoteNoteInput, expectedAuthorUri: String?): AuthorCheckedWrite<RemoteNoteReception> =
+                    if (stored.hasRemoteNote(note.objectUri)) {
+                        AuthorCheckedWrite.Written(RemoteNoteReception(position = null, replacedMembers = listOf()))
+                    } else {
+                        stored.receive(note, expectedAuthorUri)
+                    }
             }
             val receiver = ReceivedRemoteNotes(
                 repository,

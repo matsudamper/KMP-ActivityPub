@@ -13,6 +13,7 @@ import net.matsudamper.kmp.activitypub.repository.PublishedNotePosition
 import net.matsudamper.kmp.activitypub.repository.RemoteBoostInput
 import net.matsudamper.kmp.activitypub.repository.RemoteMediaKind
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
+import net.matsudamper.kmp.activitypub.repository.RemoteNoteReception
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteReceptionInterest
 import net.matsudamper.kmp.activitypub.repository.TimelineBooster
 import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
@@ -64,9 +65,22 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
 
     override fun receive(note: RemoteNoteInput): TimelinePosition? = jooq.transaction { dsl -> receive(dsl, note) }
 
-    override fun receive(note: RemoteNoteInput, expectedAuthorUri: String?): AuthorCheckedWrite<TimelinePosition?> = jooq.transaction { dsl ->
+    override fun receive(note: RemoteNoteInput, expectedAuthorUri: String?): AuthorCheckedWrite<RemoteNoteReception> = jooq.transaction { dsl ->
         if (dsl.remoteNoteAuthor(note.objectUri) != expectedAuthorUri) return@transaction AuthorCheckedWrite.AuthorChanged
-        AuthorCheckedWrite.Written(receive(dsl, note))
+        val replacedMembers = if (expectedAuthorUri != null && expectedAuthorUri != note.actorUri) deleteRemoteNote(dsl, note.objectUri) else listOf()
+        AuthorCheckedWrite.Written(RemoteNoteReception(position = receive(dsl, note), replacedMembers = replacedMembers))
+    }
+
+    /**
+     * 行ごと消す。投稿の id は 1 行にしか持てないので、印を付けて残すと届いた投稿を保存できない
+     *
+     * @return 消したタイムラインの member。投稿そのものと、それをブーストした行
+     */
+    private fun deleteRemoteNote(dsl: DSLContext, objectUri: String): List<String> {
+        val id = dsl.select(REMOTE_NOTES.ID).from(REMOTE_NOTES).where(REMOTE_NOTES.OBJECT_URI.eq(objectUri)).fetchOne(REMOTE_NOTES.ID) ?: return listOf()
+        val boostMembers = dsl.select(REMOTE_BOOSTS.ID).from(REMOTE_BOOSTS).where(REMOTE_BOOSTS.REMOTE_NOTE_ID.eq(id)).fetch { "b${it.value1()}" }
+        dsl.deleteFrom(REMOTE_NOTES).where(REMOTE_NOTES.ID.eq(id)).execute()
+        return listOf("r$id") + boostMembers
     }
 
     override fun findRemoteNoteAuthor(objectUri: String): String? = jooq.withConnection { dsl -> dsl.remoteNoteAuthor(objectUri) }

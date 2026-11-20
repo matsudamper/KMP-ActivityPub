@@ -56,6 +56,9 @@ internal class ReceivedRemoteNotes(
         inOpenTelemetrySuspendSpan(tracer, "Inbox.Create", false) { span -> saveInSpan(note, expectedAttributedTo, span) }
 
     override suspend fun update(note: ReceivedNote, expectedAttributedTo: String?): Boolean {
+        // 保存済みの投稿は先に届いた偽の投稿で、kotpub が投稿のあるサーバーに確かめて本来の投稿者だと判断した。
+        // 偽の投稿を編集しても本来の投稿にはならないので、届いた投稿を Create と同じく保存し直す
+        if (expectedAttributedTo != null && expectedAttributedTo != note.attributedTo) return save(note, expectedAttributedTo)
         // 宛先は変えないので、このサーバーの宛先は引かない
         val revised = note.toRemoteNoteInput(localRecipients = setOf(), now = clock.instant())
         return when (val written = repository.reviseRemote(revised, expectedAuthorUri = expectedAttributedTo)) {
@@ -189,10 +192,12 @@ internal class ReceivedRemoteNotes(
             span.setAttribute(InboxSpan.DISCARD_REASON, actorReason)
             return true
         }
-        val position = when (val written = repository.receive(note.toRemoteNoteInput(localRecipients = recipients, now = now), expectedAuthorUri = expectedAttributedTo)) {
+        val reception = when (val written = repository.receive(note.toRemoteNoteInput(localRecipients = recipients, now = now), expectedAuthorUri = expectedAttributedTo)) {
             is AuthorCheckedWrite.Written -> written.value
             AuthorCheckedWrite.AuthorChanged -> return false
         }
+        if (reception.replacedMembers.isNotEmpty()) timeline.publishDeleted(reception.replacedMembers)
+        val position = reception.position
         if (position != null) {
             span.setAttribute(InboxSpan.SAVED, true)
             span.setAttribute(InboxSpan.OUTCOME, "saved")

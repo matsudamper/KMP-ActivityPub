@@ -9,6 +9,7 @@ import net.matsudamper.kmp.activitypub.repository.PostRevisionPosition
 import net.matsudamper.kmp.activitypub.repository.PublishedNotePosition
 import net.matsudamper.kmp.activitypub.repository.RemoteBoostInput
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
+import net.matsudamper.kmp.activitypub.repository.RemoteNoteReception
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteReceptionInterest
 import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
@@ -47,7 +48,8 @@ internal class FakeTimelineRepository : TimelineRepository {
         received.add(note)
         return TimelinePosition(1, "r1")
     }
-    override fun receive(note: RemoteNoteInput, expectedAuthorUri: String?): AuthorCheckedWrite<TimelinePosition?> = AuthorCheckedWrite.Written(receive(note))
+    override fun receive(note: RemoteNoteInput, expectedAuthorUri: String?): AuthorCheckedWrite<RemoteNoteReception> =
+        AuthorCheckedWrite.Written(RemoteNoteReception(position = receive(note), replacedMembers = listOf()))
 
     override fun findRemoteNoteAuthor(objectUri: String): String? = received.lastOrNull { it.objectUri == objectUri }?.actorUri
 
