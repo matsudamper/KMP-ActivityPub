@@ -112,6 +112,7 @@ import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.round
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
@@ -990,7 +991,9 @@ internal fun SearchTabContent(
             }
         }
         LaunchedEffect(pagerState) {
+            // 保存から戻したページは選び直しではないので、購読を始めたときの値は捨てる
             snapshotFlow { pagerState.settledPage }
+                .drop(1)
                 .collect { settledPage ->
                     val settledTarget = latestTargets.getOrNull(settledPage) ?: return@collect
                     if (!settledTarget.selected) {
