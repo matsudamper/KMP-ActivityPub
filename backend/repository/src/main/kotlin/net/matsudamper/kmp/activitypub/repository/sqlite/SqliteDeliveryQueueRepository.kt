@@ -24,6 +24,7 @@ import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import org.jooq.Condition
 import org.jooq.DSLContext
+import org.jooq.Field
 import org.jooq.impl.DSL
 
 internal class SqliteDeliveryQueueRepository(
@@ -34,7 +35,19 @@ internal class SqliteDeliveryQueueRepository(
     }
 
     override fun enqueueQuoteAccept(accountId: AccountId, inbox: String, body: String, now: Instant) {
-        jooq.withConnection { dsl -> enqueueFollowing(dsl, accountId, inbox, body, now, DeliveryQueueValues.KIND_ACCEPT_QUOTE) }
+        jooq.transaction { dsl ->
+            val alreadyQueued = dsl.fetchExists(
+                DELIVERY_QUEUE,
+                DELIVERY_QUEUE.ACCOUNT_ID.eq(accountId.value)
+                    .and(DELIVERY_QUEUE.INBOX.eq(inbox))
+                    .and(DELIVERY_QUEUE.KIND.eq(DeliveryQueueValues.KIND_ACCEPT_QUOTE))
+                    .and(DELIVERY_QUEUE.STATE.`in`(DeliveryQueueValues.STATE_PENDING, DeliveryQueueValues.STATE_DELIVERING))
+                    .and(quotingNoteIdOf(DELIVERY_QUEUE.BODY).eq(quotingNoteIdOf(DSL.`val`(body)))),
+            )
+            if (!alreadyQueued) {
+                enqueueFollowing(dsl, accountId, inbox, body, now, DeliveryQueueValues.KIND_ACCEPT_QUOTE)
+            }
+        }
     }
 
     override fun cancelPendingFollowAndEnqueueUndo(accountId: AccountId, inbox: String, followId: String, body: String, now: Instant) {
@@ -480,6 +493,9 @@ internal class SqliteDeliveryQueueRepository(
             .set(DELIVERY_QUEUE.ATTEMPTS, 0L).set(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, StoredInstant.format(now))
             .set(DELIVERY_QUEUE.ENQUEUED_AT, StoredInstant.format(now)).execute()
     }
+
+    private fun quotingNoteIdOf(acceptBody: Field<*>): Field<String> =
+        DSL.field("json_extract({0}, '$.object.instrument')", String::class.java, acceptBody)
 
     private fun DSLContext.findRow(id: Long): QueueRow? =
         select(DELIVERY_QUEUE.KIND, DELIVERY_QUEUE.ACCOUNT_ID, DELIVERY_QUEUE.REMOTE_ACTOR_ID)
