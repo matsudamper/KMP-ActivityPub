@@ -1,0 +1,67 @@
+name: Android Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: release android
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: setup JDK
+        uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: setup Gradle
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+
+      - uses: matsudamper/actions/gradle-remote-cache-credentials@b23e18acbc459f662854bf84ec879d3e63793193 # v1.3.0
+        continue-on-error: true
+
+      - name: デバッグ鍵の配置
+        env:
+          DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$DEBUG_KEYSTORE_BASE64" ]; then exit 0; fi
+          DEBUG_KEYSTORE_PATH="$RUNNER_TEMP/debug.keystore"
+          echo "$DEBUG_KEYSTORE_BASE64" | base64 --decode > "$DEBUG_KEYSTORE_PATH"
+          echo "DEBUG_KEYSTORE_PATH=$DEBUG_KEYSTORE_PATH" >> "$GITHUB_ENV"
+
+      - name: Release APK のビルド
+        run: ./gradlew :frontend:app-android:assembleRelease
+
+      - name: リリース名の決定
+        run: |
+          TAG="android-$(TZ=Asia/Tokyo date +%Y%m%d-%H%M%S)"
+          APK_DIR=frontend/app-android/build/outputs/apk/release
+          APK_PATH="${APK_DIR}/app-${TAG}.apk"
+          mv "${APK_DIR}/app-android-release.apk" "${APK_PATH}"
+          echo "TAG=${TAG}" >> "$GITHUB_ENV"
+          echo "APK_PATH=${APK_PATH}" >> "$GITHUB_ENV"
+
+      - name: GitHub Release の作成
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
+        run: |
+          gh release create "${TAG}" "${APK_PATH}" \
+            --target "${GITHUB_SHA}" \
+            --title "${TAG}" \
+            --notes "Commit: ${COMMIT_URL}"
