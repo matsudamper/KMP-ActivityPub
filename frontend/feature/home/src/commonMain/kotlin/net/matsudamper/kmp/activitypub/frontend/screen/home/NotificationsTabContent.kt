@@ -29,6 +29,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.ActorOnlyItem
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemStyle
 import net.matsudamper.kmp.activitypub.frontend.ui.TimelineItemUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.contentType
 
 @Composable
 internal fun NotificationsTabContent(
@@ -114,7 +115,7 @@ private fun LoadedNotifications(
                     )
                 }
             }
-            items(notifications.items) { item ->
+            items(notifications.items, contentType = TimelineItemUiState::contentType) { item ->
                 when (item) {
                     is TimelineItemUiState.Post -> PostItem(uiState = item.uiState, style = PostItemStyle.Timeline, shareButtonVisible = shareButtonVisible)
                     is TimelineItemUiState.ActorOnly -> ActorOnlyItem(label = item.label, style = PostItemStyle.Timeline)
