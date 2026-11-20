@@ -144,6 +144,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
 import net.matsudamper.kmp.activitypub.frontend.ui.TimelineItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.URL_COPIED_MESSAGE
+import net.matsudamper.kmp.activitypub.frontend.ui.contentType
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 import net.matsudamper.kmp.activitypub.frontend.ui.rememberProfileContentPagerState
 import net.matsudamper.kmp.activitypub.frontend.ui.rememberUrlSharer
@@ -870,7 +871,7 @@ internal fun TimelineTabContent(
                 .fillMaxSize()
                 .then(wheelPullToRefreshBlocker.modifier),
         ) {
-            items(timelineItems) { item ->
+            items(timelineItems, contentType = TimelineItemUiState::contentType) { item ->
                 when (item) {
                     is TimelineItemUiState.Post -> PostItem(uiState = item.uiState, style = PostItemStyle.Timeline, shareButtonVisible = shareButtonVisible)
                     is TimelineItemUiState.ActorOnly -> ActorOnlyItem(label = item.label, style = PostItemStyle.Timeline)

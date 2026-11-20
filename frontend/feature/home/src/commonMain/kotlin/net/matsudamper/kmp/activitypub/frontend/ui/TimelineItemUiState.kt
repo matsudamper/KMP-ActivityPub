@@ -11,3 +11,17 @@ sealed interface TimelineItemUiState {
      */
     data class ActorOnly(val label: PostItemUiState.ActorLabel) : TimelineItemUiState
 }
+
+/**
+ * 投稿の行と、投稿の無い通知の行とで、作り置きの中身を使い回さない
+ */
+internal val TimelineItemUiState.contentType: TimelineItemContentType
+    get() = when (this) {
+        is TimelineItemUiState.Post -> TimelineItemContentType.Post
+        is TimelineItemUiState.ActorOnly -> TimelineItemContentType.ActorOnly
+    }
+
+internal enum class TimelineItemContentType {
+    Post,
+    ActorOnly,
+}
