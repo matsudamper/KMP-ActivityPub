@@ -17,9 +17,11 @@ interface TimelineRepository {
      * 見比べと書き込みは同じトランザクションで行う。
      *
      * 保存済みの投稿者が [RemoteNoteInput.actorUri] と違うのは、別のアクターが先に同じ id で送った偽の投稿を、
-     * 投稿のあるサーバーに確かめて本来の投稿者のものと判断したとき。偽の投稿は消して届いた投稿を保存し直す
+     * 投稿のあるサーバーに確かめて本来の投稿者のものと判断したとき。偽の投稿の行は消して、届いた投稿を保存し直す。
+     * 行を消すと、タイムラインの配布先も、このサーバーのアカウントのブーストを取り消す宛先も引けなくなるので、
+     * 呼ぶ前に [AccountBoostRepository.deleteRemoteNoteAndUndoBoosts] で削除済みにしておくこと
      */
-    fun receive(note: RemoteNoteInput, expectedAuthorUri: String?): AuthorCheckedWrite<RemoteNoteReception>
+    fun receive(note: RemoteNoteInput, expectedAuthorUri: String?): AuthorCheckedWrite<TimelinePosition?>
 
     /**
      * 保存済みの投稿の投稿者。削除済みの印が付いた投稿も含む
@@ -187,12 +189,6 @@ data class RemoteNoteReceptionInterest(val followingAccountCount: Long, val loca
 }
 
 data class TimelinePosition(val score: Long, val member: String)
-
-/**
- * @param position タイムラインに載せる位置。記録しなかったか、記録済みなら null
- * @param replacedMembers 本来の投稿者の投稿に置き換えるために消した、偽の投稿のタイムラインの member。投稿そのものと、それをブーストした行
- */
-data class RemoteNoteReception(val position: TimelinePosition?, val replacedMembers: List<String>)
 
 /**
  * @param groupId 投稿を載せる購読先。メインなら null

@@ -78,7 +78,7 @@ class TimelineRepositoryTest {
         val original = note("1", "public", setOf())
         assertNull(repository.findRemoteNoteAuthor(original.objectUri))
         assertEquals(AuthorCheckedWrite.AuthorChanged, repository.receive(original, expectedAuthorUri = ACTOR))
-        val saved = assertNotNull((repository.receive(original, expectedAuthorUri = null) as AuthorCheckedWrite.Written).value.position)
+        val saved = assertNotNull((repository.receive(original, expectedAuthorUri = null) as AuthorCheckedWrite.Written).value)
         assertEquals(ACTOR, repository.findRemoteNoteAuthor(original.objectUri))
 
         val edited = original.copy(contentHtml = "<p>編集</p>", editedAt = NOW.plusSeconds(10))
@@ -99,12 +99,10 @@ class TimelineRepositoryTest {
         repositories.followingRepository.add(alice, ACTOR, NOW)
         repositories.followingRepository.add(alice, forger, NOW)
         val genuine = note("1", "public", setOf())
-        val forged = assertNotNull((repository.receive(genuine.copy(actorUri = forger, contentHtml = "<p>偽</p>"), expectedAuthorUri = null) as AuthorCheckedWrite.Written).value.position)
+        val forged = assertNotNull((repository.receive(genuine.copy(actorUri = forger, contentHtml = "<p>偽</p>"), expectedAuthorUri = null) as AuthorCheckedWrite.Written).value)
         assertEquals(forger, repository.findRemoteNoteAuthor(genuine.objectUri))
 
-        val reception = (repository.receive(genuine, expectedAuthorUri = forger) as AuthorCheckedWrite.Written).value
-        assertEquals(listOf(forged.member), reception.replacedMembers)
-        val replaced = assertNotNull(reception.position)
+        val replaced = assertNotNull((repository.receive(genuine, expectedAuthorUri = forger) as AuthorCheckedWrite.Written).value)
         assertEquals(ACTOR, repository.findRemoteNoteAuthor(genuine.objectUri))
         assertEquals("<p>本文</p>", repository.hydrate(alice, listOf(replaced.member)).single().contentHtml)
         assertTrue(repository.hydrate(alice, listOf(forged.member)).isEmpty())

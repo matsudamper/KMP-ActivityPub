@@ -178,6 +178,11 @@ internal class ReceivedRemoteNotes(
         span.setAttribute(InboxSpan.ACTOR, note.attributedTo)
         span.setAttribute(InboxSpan.SAVED, false)
         span.setAttribute(InboxSpan.OUTCOME, "discarded")
+        if (expectedAttributedTo != null && expectedAttributedTo != note.attributedTo) {
+            // 保存済みの投稿は先に届いた偽の投稿。届いた投稿を受け取らないときも残さないよう、受け取るかを決める前に消す
+            val deleted = deleteRemoteNote(expectedAttributedTo, note.id, expectedAttributedTo) ?: return false
+            timeline.publishDeleted(deleted)
+        }
         val recipients = localUsernamesOf(note.to + note.cc).filterNot { blocks.blocks(it, note.attributedTo) }.toSet()
         val interest = repository.receptionInterest(note.attributedTo, recipients)
         span.setAttribute(InboxSpan.FOLLOWING_ACCOUNT_COUNT, interest.followingAccountCount)
@@ -192,12 +197,10 @@ internal class ReceivedRemoteNotes(
             span.setAttribute(InboxSpan.DISCARD_REASON, actorReason)
             return true
         }
-        val reception = when (val written = repository.receive(note.toRemoteNoteInput(localRecipients = recipients, now = now), expectedAuthorUri = expectedAttributedTo)) {
+        val position = when (val written = repository.receive(note.toRemoteNoteInput(localRecipients = recipients, now = now), expectedAuthorUri = expectedAttributedTo)) {
             is AuthorCheckedWrite.Written -> written.value
             AuthorCheckedWrite.AuthorChanged -> return false
         }
-        if (reception.replacedMembers.isNotEmpty()) timeline.publishDeleted(reception.replacedMembers)
-        val position = reception.position
         if (position != null) {
             span.setAttribute(InboxSpan.SAVED, true)
             span.setAttribute(InboxSpan.OUTCOME, "saved")

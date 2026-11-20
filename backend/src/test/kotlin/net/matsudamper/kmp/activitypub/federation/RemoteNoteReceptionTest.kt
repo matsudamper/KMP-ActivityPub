@@ -26,7 +26,6 @@ import net.matsudamper.kmp.activitypub.repository.NotificationEvent
 import net.matsudamper.kmp.activitypub.repository.NotificationPostRef
 import net.matsudamper.kmp.activitypub.repository.RemoteMediaKind
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
-import net.matsudamper.kmp.activitypub.repository.RemoteNoteReception
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteReceptionInterest
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.repository.TimelinePostImage
@@ -211,6 +210,18 @@ class RemoteNoteReceptionTest {
     }
 
     @Test
+    fun 受け取らない投稿でも先に届いた偽の投稿は消す() = runBlocking {
+        val fixture = Fixture(OpenTelemetry.noop())
+        fixture.repositories.timelineRepository.interested = false
+        val forger = "https://remote.example/forger"
+
+        assertTrue(fixture.receiver.save(note(listOf()), expectedAttributedTo = forger))
+
+        assertEquals(listOf(RemoteNoteDeletionRequest(forger, "$ACTOR/notes/1", forger)), fixture.deletedRemoteNotes)
+        assertTrue(fixture.repositories.timelineRepository.received.isEmpty())
+    }
+
+    @Test
     fun createSpanKeepsRequestParentAndRecordsSavedAndDiscardReasons() = runBlocking {
         val exporter = InMemorySpanExporter.create()
         val provider = SdkTracerProvider.builder().addSpanProcessor(SimpleSpanProcessor.create(exporter)).build()
@@ -218,12 +229,8 @@ class RemoteNoteReceptionTest {
             val fixture = Fixture(OpenTelemetry.noop())
             val stored = fixture.repositories.timelineRepository
             val repository = object : TimelineRepository by stored {
-                override fun receive(note: RemoteNoteInput, expectedAuthorUri: String?): AuthorCheckedWrite<RemoteNoteReception> =
-                    if (stored.hasRemoteNote(note.objectUri)) {
-                        AuthorCheckedWrite.Written(RemoteNoteReception(position = null, replacedMembers = listOf()))
-                    } else {
-                        stored.receive(note, expectedAuthorUri)
-                    }
+                override fun receive(note: RemoteNoteInput, expectedAuthorUri: String?): AuthorCheckedWrite<TimelinePosition?> =
+                    if (stored.hasRemoteNote(note.objectUri)) AuthorCheckedWrite.Written(null) else stored.receive(note, expectedAuthorUri)
             }
             val receiver = ReceivedRemoteNotes(
                 repository,
@@ -421,6 +428,8 @@ class RemoteNoteReceptionTest {
         unknownTypes = listOf(),
     )
 
+    private data class RemoteNoteDeletionRequest(val actorUri: String, val objectUri: String, val expectedAuthorUri: String?)
+
     private class Fixture(openTelemetry: OpenTelemetry) {
         val repositories = FakeRepositories()
         val accountId = repositories.accountRepository.add("alice", "hash", "type")
@@ -444,6 +453,7 @@ class RemoteNoteReceptionTest {
                 Clock.systemUTC(),
             )
         val recordedNotifications = mutableListOf<NotificationEvent>()
+        val deletedRemoteNotes = mutableListOf<RemoteNoteDeletionRequest>()
         val receiver =
             ReceivedRemoteNotes(
                 repositories.timelineRepository,
@@ -454,7 +464,10 @@ class RemoteNoteReceptionTest {
                 timeline,
                 NotificationRecorder { recordedNotifications += it },
                 Clock.systemUTC(),
-                { actorUri, objectUri, _ -> repositories.timelineRepository.deleteRemote(actorUri, objectUri, Instant.now()) },
+                { actorUri, objectUri, expectedAuthorUri ->
+                    deletedRemoteNotes += RemoteNoteDeletionRequest(actorUri, objectUri, expectedAuthorUri)
+                    repositories.timelineRepository.deleteRemote(actorUri, objectUri, Instant.now())
+                },
                 openTelemetry,
             )
         val delivery = QueuedFollowDelivery(
