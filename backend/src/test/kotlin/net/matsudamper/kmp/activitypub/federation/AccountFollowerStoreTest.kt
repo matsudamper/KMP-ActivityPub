@@ -32,10 +32,12 @@ class AccountFollowerStoreTest {
         repositories.actorBlockRepository.add(alice, BlockedActor(actorUri = CAROL, acct = "carol@remote.example"), Instant.EPOCH)
         repositories.serverBlockRepository.add(alice, "blocked.example", Instant.EPOCH)
 
-        assertTrue(store.refuses("alice", CAROL))
-        assertTrue(store.refuses("alice", "https://blocked.example/users/dave"))
-        assertFalse(store.refuses("alice", "https://remote.example/users/erin"))
+        assertTrue(store.refuses("alice", remoteActor(CAROL)))
+        assertTrue(store.refuses("alice", remoteActor("https://blocked.example/users/dave")))
+        assertFalse(store.refuses("alice", remoteActor("https://remote.example/users/erin")))
     }
+
+    private fun remoteActor(actorId: String): RemoteActor = RemoteActor(actorId, "$actorId/inbox", null, "key", RemoteActorProfile("remote", null, null, null, null, emojis = listOf()))
 
     @Test
     fun rejectEnqueuesRejectToTheFollowerInbox() {
