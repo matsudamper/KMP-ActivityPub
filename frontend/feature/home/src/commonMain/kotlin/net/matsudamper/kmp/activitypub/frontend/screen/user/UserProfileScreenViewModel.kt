@@ -34,6 +34,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.withLiked
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withPinned
 import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.CreateOpenOriginalMenuItemsUseCase
+import net.matsudamper.kmp.activitypub.frontend.screen.MEDIA_AUTO_LOAD_PAGE_LIMIT_WITHOUT_MEDIA
 import net.matsudamper.kmp.activitypub.frontend.screen.NoteDeletionState
 import net.matsudamper.kmp.activitypub.frontend.screen.POST_TRANSLATION_FAILED_MESSAGE
 import net.matsudamper.kmp.activitypub.frontend.screen.PostActorLabel
@@ -48,6 +49,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.ReactionDecision
 import net.matsudamper.kmp.activitypub.frontend.screen.ReactionPickerTarget
 import net.matsudamper.kmp.activitypub.frontend.screen.awaitLoggedIn
 import net.matsudamper.kmp.activitypub.frontend.screen.confirm
+import net.matsudamper.kmp.activitypub.frontend.screen.containsProfileMedia
 import net.matsudamper.kmp.activitypub.frontend.screen.createNoteMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPinMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemQuote
@@ -159,12 +161,18 @@ internal class UserProfileScreenViewModel(
                 loadMoreLikes()
             } else {
                 if (loaded.posts.loadErrorMessage != null) return
+                if (viewModelStateFlow.value.selectedTab == ProfileContentTab.Media && loaded.posts.mediaAutoLoadPaused) return
                 loadMore()
             }
         }
 
         override fun onClickRetryLoadMore() {
             if (viewModelStateFlow.value.selectedTab == ProfileContentTab.Likes) loadMoreLikes() else loadMore()
+        }
+
+        override fun onClickLoadMoreMedia() {
+            updatePosts { it.copy(pagesWithoutMedia = 0) }
+            loadMore()
         }
 
         override fun onClickSensitiveImagesVisibility() {
@@ -292,7 +300,7 @@ internal class UserProfileScreenViewModel(
     private suspend fun reloadPostsWithoutLoading() {
         val result = api.userProfilePosts(acct = username, after = null) as? UserProfilePostsResult.Success ?: return
         loadMoreJob?.cancel()
-        updatePosts { PostsState(posts = result.posts, next = result.nextCursor.toNextPosts(), loadErrorMessage = null) }
+        updatePosts { PostsState(posts = result.posts, next = result.nextCursor.toNextPosts(), loadErrorMessage = null, pagesWithoutMedia = 0) }
     }
 
     /**
@@ -321,7 +329,7 @@ internal class UserProfileScreenViewModel(
                 when (val result = api.userProfile(username = username)) {
                     is UserProfileResult.Found -> ProfileState.Loaded(
                         profile = result,
-                        posts = PostsState(posts = listOf(), next = NextPosts.FirstPage, loadErrorMessage = null),
+                        posts = PostsState(posts = listOf(), next = NextPosts.FirstPage, loadErrorMessage = null, pagesWithoutMedia = 0),
                         likes = LikesState(posts = listOf(), next = NextPosts.FirstPage, loadErrorMessage = null, available = false),
                     )
 
@@ -360,7 +368,7 @@ internal class UserProfileScreenViewModel(
                 when (result) {
                     is UserProfileLikesResult.Success -> current.copy(
                         posts = current.posts + result.posts,
-                        next = result.nextCursor.toNextPosts(),
+                        next = result.nextCursor.toNextPostsAfter(next),
                         available = true,
                     )
 
@@ -375,7 +383,7 @@ internal class UserProfileScreenViewModel(
             }
         }
         val nextCursor = (result as? UserProfileLikesResult.Success)?.takeIf { it.posts.isEmpty() }?.nextCursor ?: return
-        val continuation = NextPosts.After(nextCursor)
+        val continuation = nextCursor.toNextPostsAfter(next) as? NextPosts.After ?: return
         val applied = (viewModelStateFlow.value.profile as? ProfileState.Loaded)?.likes?.next == continuation
         if (applied) loadLikes(continuation)
     }
@@ -400,15 +408,23 @@ internal class UserProfileScreenViewModel(
                 current
             } else {
                 when (result) {
-                    is UserProfilePostsResult.Success -> current.copy(posts = current.posts + result.posts, next = result.nextCursor.toNextPosts())
+                    is UserProfilePostsResult.Success -> current.copy(
+                        posts = current.posts + result.posts,
+                        next = result.nextCursor.toNextPostsAfter(next),
+                        pagesWithoutMedia = if (result.posts.containsProfileMedia()) 0 else current.pagesWithoutMedia + 1,
+                    )
+
                     is UserProfilePostsResult.Failure -> current.copy(loadErrorMessage = result.message)
                 }
             }
         }
         val nextCursor = (result as? UserProfilePostsResult.Success)?.takeIf { it.posts.isEmpty() }?.nextCursor ?: return
-        val continuation = NextPosts.After(nextCursor)
-        val applied = (viewModelStateFlow.value.profile as? ProfileState.Loaded)?.posts?.next == continuation
-        if (applied) loadPosts(continuation)
+        val continuation = nextCursor.toNextPostsAfter(next) as? NextPosts.After ?: return
+        val state = viewModelStateFlow.value
+        val posts = (state.profile as? ProfileState.Loaded)?.posts ?: return
+        if (posts.next != continuation) return
+        if (state.selectedTab == ProfileContentTab.Media && posts.mediaAutoLoadPaused) return
+        loadPosts(continuation)
     }
 
     /**
@@ -861,6 +877,8 @@ internal class UserProfileScreenViewModel(
             postsEmptyMessage = if (posts.posts.isEmpty() && posts.next == NextPosts.End) "表示できる投稿はありません" else null,
             postsFooter = createPostsFooter(posts),
             media = media,
+            mediaLoadMoreButtonVisible = posts.mediaAutoLoadPaused,
+            mediaFooter = if (posts.mediaAutoLoadPaused) UserProfileScreenUiState.PostsFooter.None else createPostsFooter(posts),
             mediaEmptyMessage = if (media.isEmpty() && posts.next == NextPosts.End) "表示できるメディアはありません" else null,
             likes = loaded.likes.posts.map { post -> createLikedPostItem(post, viewModelState) },
             likesEmptyMessage = if (loaded.likes.posts.isEmpty() && loaded.likes.next == NextPosts.End) "表示できるいいねはありません" else null,
@@ -949,6 +967,12 @@ internal class UserProfileScreenViewModel(
     }
 
     private fun String?.toNextPosts(): NextPosts = if (this == null) NextPosts.End else NextPosts.After(this)
+
+    /**
+     * 読んだページと同じ続きが返ってきたら、読み進めても同じページを繰り返すだけなので、そこで終わりにする
+     */
+    private fun String?.toNextPostsAfter(requested: NextPosts): NextPosts =
+        if (this != null && requested == NextPosts.After(this)) NextPosts.End else toNextPosts()
 
     internal interface Event {
         fun closeToHome()
@@ -1039,12 +1063,17 @@ internal class UserProfileScreenViewModel(
     /**
      * @param next 次に読むページ
      * @param loadErrorMessage 投稿を読めなかったときの理由。読めていれば null
+     * @param pagesWithoutMedia メディアのタブに出る画像の無いページが、最後に画像のあったページから続けて何ページあったか
      */
     private data class PostsState(
         val posts: List<UserProfileResult.Post>,
         val next: NextPosts,
         val loadErrorMessage: String?,
-    )
+        val pagesWithoutMedia: Int,
+    ) {
+        val mediaAutoLoadPaused: Boolean
+            get() = loadErrorMessage == null && next != NextPosts.End && pagesWithoutMedia >= MEDIA_AUTO_LOAD_PAGE_LIMIT_WITHOUT_MEDIA
+    }
 
     /**
      * @param next 次に読むページ

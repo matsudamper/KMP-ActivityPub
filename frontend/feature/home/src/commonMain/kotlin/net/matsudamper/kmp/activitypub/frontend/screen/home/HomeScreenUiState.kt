@@ -299,6 +299,8 @@ data class HomeScreenUiState(
             val postsFooter: TimelineFooter,
             val media: List<ProfileMediaUiState>,
             val mediaEmptyMessage: String?,
+            val mediaLoadMoreButtonVisible: Boolean,
+            val mediaFooter: TimelineFooter,
             val likes: List<PostItemUiState>,
             val likesEmptyMessage: String?,
             val likesFooter: TimelineFooter,
@@ -388,6 +390,8 @@ data class HomeScreenUiState(
         fun onScrolledToUserContentEnd()
 
         fun onClickRetryLoadMoreUserContent()
+
+        fun onClickLoadMoreUserMedia()
 
         fun onClickFollowing()
 

@@ -698,6 +698,8 @@ private fun HomeUserContentPreview() {
                     postsFooter = HomeScreenUiState.TimelineFooter.None,
                     media = listOf(),
                     mediaEmptyMessage = "表示できるメディアはありません",
+                    mediaLoadMoreButtonVisible = false,
+                    mediaFooter = HomeScreenUiState.TimelineFooter.None,
                     likes = listOf(),
                     likesEmptyMessage = "表示できるいいねはありません",
                     likesFooter = HomeScreenUiState.TimelineFooter.None,
@@ -759,6 +761,8 @@ private fun HomeUserMediaEmptyContentPreview() {
                     postsFooter = HomeScreenUiState.TimelineFooter.None,
                     media = listOf(),
                     mediaEmptyMessage = "表示できるメディアはありません",
+                    mediaLoadMoreButtonVisible = false,
+                    mediaFooter = HomeScreenUiState.TimelineFooter.None,
                     likes = listOf(),
                     likesEmptyMessage = "表示できるいいねはありません",
                     likesFooter = HomeScreenUiState.TimelineFooter.None,
@@ -860,6 +864,8 @@ private fun HomeUserMediaContentPreview() {
                         )
                     },
                     mediaEmptyMessage = null,
+                    mediaLoadMoreButtonVisible = false,
+                    mediaFooter = HomeScreenUiState.TimelineFooter.None,
                     likes = listOf(),
                     likesEmptyMessage = "表示できるいいねはありません",
                     likesFooter = HomeScreenUiState.TimelineFooter.None,
@@ -1101,6 +1107,8 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
     override fun onScrolledToUserContentEnd() = Unit
 
     override fun onClickRetryLoadMoreUserContent() = Unit
+
+    override fun onClickLoadMoreUserMedia() = Unit
 
     override fun onClickFollowing() = Unit
 

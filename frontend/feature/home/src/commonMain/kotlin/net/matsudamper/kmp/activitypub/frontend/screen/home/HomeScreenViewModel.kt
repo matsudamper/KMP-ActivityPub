@@ -67,6 +67,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.withUpdatedPost
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withoutNote
 import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.CreateOpenOriginalMenuItemsUseCase
+import net.matsudamper.kmp.activitypub.frontend.screen.MEDIA_AUTO_LOAD_PAGE_LIMIT_WITHOUT_MEDIA
 import net.matsudamper.kmp.activitypub.frontend.screen.NoteDeletionState
 import net.matsudamper.kmp.activitypub.frontend.screen.POST_TRANSLATION_FAILED_MESSAGE
 import net.matsudamper.kmp.activitypub.frontend.screen.PostActorLabel
@@ -81,6 +82,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.ReactionDecision
 import net.matsudamper.kmp.activitypub.frontend.screen.ReactionPickerTarget
 import net.matsudamper.kmp.activitypub.frontend.screen.ReplyTargetAuthorLoad
 import net.matsudamper.kmp.activitypub.frontend.screen.confirm
+import net.matsudamper.kmp.activitypub.frontend.screen.containsProfileMedia
 import net.matsudamper.kmp.activitypub.frontend.screen.createActorLabelUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.createNoteMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPinMenuItems
@@ -364,12 +366,18 @@ internal class HomeScreenViewModel(
                 loadMoreMyLikes()
             } else {
                 if (loaded.posts.loadErrorMessage != null) return
+                if (viewModelStateFlow.value.userContentTab == ProfileContentTab.Media && loaded.posts.mediaAutoLoadPaused) return
                 loadMoreMyPosts()
             }
         }
 
         override fun onClickRetryLoadMoreUserContent() {
             if (viewModelStateFlow.value.userContentTab == ProfileContentTab.Likes) loadMoreMyLikes() else loadMoreMyPosts()
+        }
+
+        override fun onClickLoadMoreUserMedia() {
+            updateMyPostsPages { it.copy(pagesWithoutMedia = 0) }
+            loadMoreMyPosts()
         }
 
         override fun onClickFollowing() {
@@ -734,10 +742,10 @@ internal class HomeScreenViewModel(
                                 is UserProfileLikesResult.Success ->
                                     current?.likes.withFirstPageReloaded(firstPage = likesResult.posts, nextCursor = likesResult.nextCursor, idOf = { it.id }, isPinned = { false })
 
-                                UserProfileLikesResult.Hidden -> MyPostsPages(posts = listOf(), next = NextMyPostsPage.End, loadErrorMessage = null)
+                                UserProfileLikesResult.Hidden -> MyPostsPages(posts = listOf(), next = NextMyPostsPage.End, loadErrorMessage = null, pagesWithoutMedia = 0)
 
                                 is UserProfileLikesResult.Failure -> if (current == null || current.likes.next == NextMyPostsPage.FirstPage) {
-                                    MyPostsPages(posts = listOf(), next = NextMyPostsPage.FirstPage, loadErrorMessage = likesResult.message)
+                                    MyPostsPages(posts = listOf(), next = NextMyPostsPage.FirstPage, loadErrorMessage = likesResult.message, pagesWithoutMedia = 0)
                                 } else {
                                     current.likes
                                 }
@@ -776,7 +784,8 @@ internal class HomeScreenViewModel(
                         val loadedPostIds = current.posts.map { it.postId }.toSet()
                         current.copy(
                             posts = current.posts + result.posts.filterNot { it.postId in loadedPostIds },
-                            next = result.nextCursor.toNextMyPostsPage(),
+                            next = result.nextCursor.toNextMyPostsPageAfter(next),
+                            pagesWithoutMedia = if (result.posts.containsProfileMedia()) 0 else current.pagesWithoutMedia + 1,
                         )
                     }
 
@@ -785,9 +794,12 @@ internal class HomeScreenViewModel(
             }
         }
         val nextCursor = (result as? UserProfilePostsResult.Success)?.takeIf { it.posts.isEmpty() }?.nextCursor ?: return
-        val continuation = NextMyPostsPage.After(nextCursor)
-        val applied = (viewModelStateFlow.value.myPosts as? MyPostsState.Loaded)?.posts?.next == continuation
-        if (applied) loadMyPostsPage(username = username, next = continuation)
+        val continuation = nextCursor.toNextMyPostsPageAfter(next) as? NextMyPostsPage.After ?: return
+        val state = viewModelStateFlow.value
+        val posts = (state.myPosts as? MyPostsState.Loaded)?.posts ?: return
+        if (posts.next != continuation) return
+        if (state.userContentTab == ProfileContentTab.Media && posts.mediaAutoLoadPaused) return
+        loadMyPostsPage(username = username, next = continuation)
     }
 
     private fun loadMoreMyLikes() {
@@ -810,14 +822,14 @@ internal class HomeScreenViewModel(
                 current
             } else {
                 when (result) {
-                    is UserProfileLikesResult.Success -> current.copy(posts = current.posts + result.posts, next = result.nextCursor.toNextMyPostsPage())
+                    is UserProfileLikesResult.Success -> current.copy(posts = current.posts + result.posts, next = result.nextCursor.toNextMyPostsPageAfter(next))
                     UserProfileLikesResult.Hidden -> current.copy(next = NextMyPostsPage.End)
                     is UserProfileLikesResult.Failure -> current.copy(loadErrorMessage = result.message)
                 }
             }
         }
         val nextCursor = (result as? UserProfileLikesResult.Success)?.takeIf { it.posts.isEmpty() }?.nextCursor ?: return
-        val continuation = NextMyPostsPage.After(nextCursor)
+        val continuation = nextCursor.toNextMyPostsPageAfter(next) as? NextMyPostsPage.After ?: return
         val applied = (viewModelStateFlow.value.myPosts as? MyPostsState.Loaded)?.likes?.next == continuation
         if (applied) loadMyLikesPage(username = username, next = continuation)
     }
@@ -1684,6 +1696,8 @@ internal class HomeScreenViewModel(
                     emptyMessage = if (posts.posts.isEmpty() && posts.next == NextMyPostsPage.End) "表示できる投稿はありません" else null,
                     postsFooter = createUserPostsFooter(posts),
                     media = media,
+                    mediaLoadMoreButtonVisible = posts.mediaAutoLoadPaused,
+                    mediaFooter = if (posts.mediaAutoLoadPaused) HomeScreenUiState.TimelineFooter.None else createUserPostsFooter(posts),
                     mediaEmptyMessage = if (media.isEmpty() && posts.next == NextMyPostsPage.End) "表示できるメディアはありません" else null,
                     likes = likes.posts.map { post -> createMyLikedPostItem(post, viewModelState) },
                     likesEmptyMessage = if (likes.posts.isEmpty() && likes.next == NextMyPostsPage.End) "表示できるいいねはありません" else null,
@@ -2374,12 +2388,17 @@ internal class HomeScreenViewModel(
     /**
      * @param next 次に読むページ
      * @param loadErrorMessage 続きを読めなかったときの理由。読めていれば null
+     * @param pagesWithoutMedia メディアのタブに出る画像の無いページが、最後に画像のあったページから続けて何ページあったか。いいねの一覧では使わない
      */
     private data class MyPostsPages<T>(
         val posts: List<T>,
         val next: NextMyPostsPage,
         val loadErrorMessage: String?,
-    )
+        val pagesWithoutMedia: Int,
+    ) {
+        val mediaAutoLoadPaused: Boolean
+            get() = loadErrorMessage == null && next != NextMyPostsPage.End && pagesWithoutMedia >= MEDIA_AUTO_LOAD_PAGE_LIMIT_WITHOUT_MEDIA
+    }
 
     private sealed interface NextMyPostsPage {
         data object FirstPage : NextMyPostsPage
@@ -2390,6 +2409,12 @@ internal class HomeScreenViewModel(
     }
 
     private fun String?.toNextMyPostsPage(): NextMyPostsPage = if (this == null) NextMyPostsPage.End else NextMyPostsPage.After(this)
+
+    /**
+     * 読んだページと同じ続きが返ってきたら、読み進めても同じページを繰り返すだけなので、そこで終わりにする
+     */
+    private fun String?.toNextMyPostsPageAfter(requested: NextMyPostsPage): NextMyPostsPage =
+        if (this != null && requested == NextMyPostsPage.After(this)) NextMyPostsPage.End else toNextMyPostsPage()
 
     /**
      * 画面に戻るたびに最初のページを読み直すので、読み進めた続きは捨てずに残す。捨てると戻るたびに読み進めた位置を失う。
@@ -2414,7 +2439,7 @@ internal class HomeScreenViewModel(
         return if (this != null && firstPageOverlapsLoaded && loadedHeadKept && continuationExists && loadedContinuation.isNotEmpty()) {
             copy(posts = firstPage + loadedContinuation)
         } else {
-            MyPostsPages(posts = firstPage, next = nextCursor.toNextMyPostsPage(), loadErrorMessage = null)
+            MyPostsPages(posts = firstPage, next = nextCursor.toNextMyPostsPage(), loadErrorMessage = null, pagesWithoutMedia = 0)
         }
     }
 }
