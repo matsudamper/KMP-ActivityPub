@@ -32,6 +32,11 @@ type UserInfo {
     after には前回の nextCursor を渡す。limit は 100 までに縮める。管理者でなければエラー
     """
     unknownObjectTypes(after: String, limit: Int!): UnknownObjectTypePage! @lazy
+    """
+    同じホストからのフォローで配る先の上限と、ホストごとの今の配る先の数。上限を超える Follow は断る。
+    管理者でなければエラー
+    """
+    deliveryTargetLimit: DeliveryTargetLimit! @lazy
     "フォローを仕分けるグループ。作った順"
     followingGroups: [FollowingGroup!]! @lazy
     "どのグループにも入れていないフォローを入れるメインの名前"
@@ -105,6 +110,20 @@ type UnknownObjectType {
     seenCount: Int!
     firstSeenAt: String!
     lastSeenAt: String!
+}
+
+type DeliveryTargetLimit {
+    "同じホストからのフォローで配る先の上限"
+    maxPerHost: Int!
+    "フォローしてきた相手のホストごとの配る先の数。多い順。どのアカウントへのフォローかは問わず、まだ成立していないフォローも含める"
+    hosts: [DeliveryTargetHost!]!
+}
+
+type DeliveryTargetHost {
+    "フォローしてきた相手のアクター URL の小文字のホスト"
+    host: String!
+    "配る先の inbox の数。sharedInbox を持つ相手はそれにまとめるので、同じ sharedInbox の相手は合わせて 1 と数える"
+    deliveryTargetCount: Int!
 }
 
 "フォローを仕分けるグループ。どのグループにも入れていないフォローはメインに入る"

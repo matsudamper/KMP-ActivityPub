@@ -55,6 +55,28 @@ class FavouriteRepositoryTest {
     }
 
     @Test
+    fun `お気に入りで受け取り直したアクターではフォロワーの配る先を置き換えない`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            repositories.postNote("note-1")
+            repositories.followerRepository.record(
+                username = "user1",
+                follower = actor(ALICE).copy(sharedInbox = "https://remote.example/inbox"),
+                followerHost = "remote.example",
+                followActivityUri = "https://remote.example/follows/1",
+                receivedAt = NOW,
+                acceptBody = "accept",
+            )
+
+            repositories.favouriteRepository.add(NOTE_1, actor(ALICE), NOW)
+
+            assertEquals(
+                setOf("https://remote.example/inbox"),
+                repositories.followerRepository.findDeliveryInboxesOfOtherFollowersOnHost(followerActorUri = BOB, host = "remote.example"),
+            )
+        }
+    }
+
+    @Test
     fun `無い投稿へのお気に入りは記録しない`() {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             assertFalse(repositories.favouriteRepository.add(NOTE_1, actor(ALICE), NOW))

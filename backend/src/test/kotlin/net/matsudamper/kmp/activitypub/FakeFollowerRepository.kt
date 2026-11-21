@@ -1,9 +1,11 @@
 package net.matsudamper.kmp.activitypub
 
+import java.net.URI
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.ActorListPosition
 import net.matsudamper.kmp.activitypub.repository.FollowRecord
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
+import net.matsudamper.kmp.activitypub.repository.HostDeliveryInboxCount
 import net.matsudamper.kmp.activitypub.repository.ListedActor
 import net.matsudamper.kmp.activitypub.repository.RemoteActorProfileRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
@@ -19,6 +21,9 @@ internal class FakeFollowerRepository : FollowerRepository {
 
     /** 積んだ Reject。積んだ順 */
     val rejects = mutableListOf<Rejected>()
+
+    /** 記録済みのフォロワーのアクター。配る先の上限の判定に使う */
+    val followerActors = mutableListOf<RemoteActorRecord>()
 
     override fun record(
         username: String,
@@ -90,6 +95,20 @@ internal class FakeFollowerRepository : FollowerRepository {
     override fun countAcceptedFollowers(username: String): Long = 0
 
     override fun findDeliveryInboxes(username: String): List<String> = deliveryInboxes.toList()
+
+    override fun findDeliveryInboxesOfOtherFollowersOnHost(
+        followerActorUri: String,
+        host: String,
+    ): Set<String> = followerActors
+        .filter { it.actorUri != followerActorUri && URI(it.actorUri).host?.lowercase() == host }
+        .map { it.sharedInbox ?: it.inbox }
+        .toSet()
+
+    override fun findCurrentDeliveryInbox(followerActorUri: String): String? = followerActors
+        .firstOrNull { it.actorUri == followerActorUri }
+        ?.let { it.sharedInbox ?: it.inbox }
+
+    override fun countDeliveryInboxesByHost(): List<HostDeliveryInboxCount> = listOf()
 
     data class Rejected(
         val username: String,

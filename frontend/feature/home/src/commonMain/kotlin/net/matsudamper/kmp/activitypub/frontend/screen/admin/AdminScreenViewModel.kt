@@ -54,6 +54,12 @@ internal class AdminScreenViewModel(
                     events.send { it.navigateToUnknownObjectTypes() }
                 }
             }
+
+            override fun onClickDeliveryTargetLimit() {
+                viewModelScope.launch {
+                    events.send { it.navigateToDeliveryTargetLimit() }
+                }
+            }
         }
 
     private val remoteProfileRefreshListener =
@@ -172,6 +178,8 @@ internal class AdminScreenViewModel(
         fun navigateToFailedDeliveries()
 
         fun navigateToUnknownObjectTypes()
+
+        fun navigateToDeliveryTargetLimit()
 
         fun showMessage(message: String)
     }

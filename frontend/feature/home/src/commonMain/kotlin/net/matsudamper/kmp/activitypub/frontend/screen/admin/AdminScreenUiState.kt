@@ -39,5 +39,7 @@ data class AdminScreenUiState(
         fun onClickFailedDeliveries()
 
         fun onClickUnknownObjectTypes()
+
+        fun onClickDeliveryTargetLimit()
     }
 }
