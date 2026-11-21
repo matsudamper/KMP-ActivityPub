@@ -46,7 +46,16 @@ class RemoteImageProxy(
         if (!signatureMatches) return respond(RemoteImageProxyResult.NotIssued)
 
         val body = fetcher.open(remoteUrl) ?: return respond(RemoteImageProxyResult.Unavailable)
-        return body.use { respond(inspect(body)) }
+        return body.use {
+            // 応答を書き始める前の失敗なので、取れなかったこととして返せる
+            val result =
+                try {
+                    inspect(body)
+                } catch (_: IOException) {
+                    RemoteImageProxyResult.Unavailable
+                }
+            respond(result)
+        }
     }
 
     /**
