@@ -77,9 +77,9 @@ internal fun ProfileContentTabRow(
                     val placeable = measurable.measure(
                         constraints.copy(minWidth = indicatorWidth, maxWidth = indicatorWidth),
                     )
-                    // タブ行は下線の枠をタブ 1 つ分の幅に固定して左端に置くので、その幅のまま返さないと中央に寄せられてずれる
+                    // タブ行は下線の枠をタブ 1 つ分の幅に固定して開始端に置くので、その幅のまま返さないと中央に寄せられてずれる
                     layout(constraints.maxWidth, placeable.height) {
-                        placeable.place(x = indicatorPosition.left.roundToPx(), y = 0)
+                        placeable.placeRelative(x = indicatorPosition.left.roundToPx(), y = 0)
                     }
                 },
                 width = Dp.Unspecified,
