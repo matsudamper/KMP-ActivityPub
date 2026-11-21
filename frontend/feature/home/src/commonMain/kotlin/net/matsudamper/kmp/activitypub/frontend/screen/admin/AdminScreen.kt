@@ -64,6 +64,10 @@ internal fun AdminScreen(
                     navigator.navigate(Screen.DeliveryTargetLimit)
                 }
 
+                override fun navigateToDeletedRemoteNotes() {
+                    navigator.navigate(Screen.DeletedRemoteNotes)
+                }
+
                 override fun showMessage(message: String) {
                     coroutineScope.launch { snackbarHostState.showSnackbar(message) }
                 }
@@ -120,6 +124,7 @@ internal fun AdminContent(
                         FailedDeliveriesSection(onClickOpen = uiState.listener::onClickFailedDeliveries)
                         UnknownObjectTypesSection(onClickOpen = uiState.listener::onClickUnknownObjectTypes)
                         DeliveryTargetLimitSection(onClickOpen = uiState.listener::onClickDeliveryTargetLimit)
+                        DeletedRemoteNotesSection(onClickOpen = uiState.listener::onClickDeletedRemoteNotes)
                     }
                 }
 
@@ -235,6 +240,30 @@ private fun DeliveryTargetLimitSection(
         )
         Button(onClick = onClickOpen) {
             Text(text = "配る先の上限を見る")
+        }
+    }
+}
+
+@Composable
+private fun DeletedRemoteNotesSection(
+    onClickOpen: () -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = "削除済みの投稿",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = "投稿者が消した他のサーバーの投稿を確認し、保存から削除できます。",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Button(onClick = onClickOpen) {
+            Text(text = "削除済みの投稿を見る")
         }
     }
 }

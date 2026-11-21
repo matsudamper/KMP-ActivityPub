@@ -74,3 +74,37 @@ query DeliveryTargetLimit {
         }
     }
 }
+
+query DeletedRemoteNotes($after: String, $limit: Int!) {
+    userInfo {
+        deletedRemoteNotes(after: $after, limit: $limit) {
+            notes {
+                id
+                objectUri
+                actorUri
+                actorName
+                contentText
+                publishedAt
+                deletedAt
+            }
+            nextCursor
+        }
+    }
+}
+
+mutation PurgeDeletedRemoteNote($id: DeletedRemoteNoteId!) {
+    user {
+        purgeDeletedRemoteNote(id: $id) {
+            failure
+        }
+    }
+}
+
+mutation PurgeAllDeletedRemoteNotes {
+    user {
+        purgeAllDeletedRemoteNotes {
+            purgedCount
+            failure
+        }
+    }
+}
