@@ -67,6 +67,30 @@ class FollowDeliveryQueueRepositoryTest {
         assertTrue(queue.claim(NOW, 10).isEmpty())
     }
 
+    @Test
+    fun quoteAcceptIsNotEnqueuedWhileSameQuoteAcceptIsStillQueued() = withQueue { queue, alice, bob ->
+        queue.enqueueQuoteAccept(alice, INBOX, quoteAcceptBody("accept-1", "note-a"), NOW)
+        queue.enqueueQuoteAccept(alice, INBOX, quoteAcceptBody("accept-2", "note-a"), NOW)
+        queue.enqueueQuoteAccept(alice, INBOX, quoteAcceptBody("accept-3", "note-b"), NOW)
+        queue.enqueueQuoteAccept(bob, INBOX, quoteAcceptBody("accept-4", "note-a"), NOW)
+        val delivering = queue.claim(NOW, 10)
+        assertEquals(listOf("accept-1", "accept-3", "accept-4"), delivering.map { it.body.substringAfter("\"id\":\"").substringBefore('"') })
+
+        queue.enqueueQuoteAccept(alice, INBOX, quoteAcceptBody("accept-5", "note-a"), NOW)
+        assertTrue(queue.claim(NOW, 10).isEmpty())
+    }
+
+    @Test
+    fun quoteAcceptCanBeEnqueuedAgainAfterDelivered() = withQueue { queue, alice, _ ->
+        queue.enqueueQuoteAccept(alice, INBOX, quoteAcceptBody("accept-1", "note-a"), NOW)
+        queue.markDelivered(queue.claim(NOW, 10).single().id, NOW)
+        queue.enqueueQuoteAccept(alice, INBOX, quoteAcceptBody("accept-2", "note-a"), NOW)
+        assertEquals(listOf(quoteAcceptBody("accept-2", "note-a")), queue.claim(NOW, 10).map { it.body })
+    }
+
+    private fun quoteAcceptBody(id: String, instrument: String): String =
+        """{"id":"$id","type":"Accept","object":{"id":"request","type":"QuoteRequest","instrument":"$instrument"}}"""
+
     private fun followBody(id: String): String = """{"id":"$id","type":"Follow"}"""
 
     private fun withQueue(block: (DeliveryQueueRepository, AccountId, AccountId) -> Unit) {
