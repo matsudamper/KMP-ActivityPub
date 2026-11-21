@@ -7,11 +7,13 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -19,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
@@ -55,11 +58,19 @@ internal val ProfileGridCells: GridCells = GridCells.Adaptive(minSize = 120.dp)
 internal fun ProfileContentTabRow(
     tabs: List<ProfileContentTab>,
     selectedTab: ProfileContentTab,
+    pagerState: PagerState,
     onClickTab: (ProfileContentTab) -> Unit,
 ) {
     PrimaryTabRow(
         selectedTabIndex = tabs.indexOf(selectedTab).coerceAtLeast(0),
         containerColor = MaterialTheme.colorScheme.background,
+        // 切り替えてから動き出すと遅れて見えるので、スワイプの途中にも下線を追従させる
+        indicator = {
+            TabRowDefaults.PrimaryIndicator(
+                modifier = fixedTabRowPagerIndicatorModifier(pagerState = pagerState, matchContentWidth = true),
+                width = Dp.Unspecified,
+            )
+        },
     ) {
         tabs.forEach { tab ->
             Tab(
