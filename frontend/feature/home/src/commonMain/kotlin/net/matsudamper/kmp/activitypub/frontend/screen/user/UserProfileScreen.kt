@@ -71,6 +71,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.ProfileHeaderImage
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinks
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaGridItem
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaLoadMoreButton
 import net.matsudamper.kmp.activitypub.frontend.ui.ReactionConfirmDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.URL_COPIED_MESSAGE
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
@@ -253,7 +254,10 @@ internal fun UserProfileContent(
                                     items(content.media) { media ->
                                         ProfileMediaGridItem(media = media, modifier = Modifier.padding(1.dp))
                                     }
-                                    postsFooter(footer = content.postsFooter, onClickRetry = uiState.listener::onClickRetryLoadMore)
+                                    if (content.mediaLoadMoreButtonVisible) {
+                                        fullLineItem { ProfileMediaLoadMoreButton(onClick = uiState.listener::onClickLoadMoreMedia) }
+                                    }
+                                    postsFooter(footer = content.mediaFooter, onClickRetry = uiState.listener::onClickRetryLoadMore)
                                 }
 
                                 ProfileContentTab.Likes -> {

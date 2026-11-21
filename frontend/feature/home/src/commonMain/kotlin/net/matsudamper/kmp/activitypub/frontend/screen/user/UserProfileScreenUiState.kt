@@ -64,6 +64,8 @@ data class UserProfileScreenUiState(
             val postsFooter: PostsFooter,
             val media: List<ProfileMediaUiState>,
             val mediaEmptyMessage: String?,
+            val mediaLoadMoreButtonVisible: Boolean,
+            val mediaFooter: PostsFooter,
             val likes: List<PostItemUiState>,
             val likesEmptyMessage: String?,
             val likesFooter: PostsFooter,
@@ -122,6 +124,8 @@ data class UserProfileScreenUiState(
         fun onScrolledToEnd()
 
         fun onClickRetryLoadMore()
+
+        fun onClickLoadMoreMedia()
 
         fun onClickPostFab()
     }

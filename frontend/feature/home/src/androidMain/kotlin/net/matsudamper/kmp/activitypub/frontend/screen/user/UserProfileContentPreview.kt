@@ -138,6 +138,8 @@ private fun UserProfileContentPreview() {
                         postsFooter = UserProfileScreenUiState.PostsFooter.Loading,
                         media = listOf(),
                         mediaEmptyMessage = "表示できるメディアはありません",
+                        mediaLoadMoreButtonVisible = false,
+                        mediaFooter = UserProfileScreenUiState.PostsFooter.Loading,
                         likes = listOf(),
                         likesEmptyMessage = null,
                         likesFooter = UserProfileScreenUiState.PostsFooter.Loading,
@@ -304,6 +306,8 @@ private fun UserProfileContentMediaPreview() {
                         )
                     },
                     mediaEmptyMessage = null,
+                    mediaLoadMoreButtonVisible = false,
+                    mediaFooter = UserProfileScreenUiState.PostsFooter.None,
                     likes = listOf(),
                     likesEmptyMessage = null,
                     likesFooter = UserProfileScreenUiState.PostsFooter.None,
@@ -337,6 +341,8 @@ private fun UserProfileContentPostsLoadingPreview() {
                     postsEmptyMessage = null,
                     postsFooter = UserProfileScreenUiState.PostsFooter.Loading,
                     mediaEmptyMessage = null,
+                    mediaLoadMoreButtonVisible = false,
+                    mediaFooter = UserProfileScreenUiState.PostsFooter.Loading,
                 ),
             ),
             snackbarHostState = SnackbarHostState(),
@@ -460,6 +466,8 @@ private val LocalUserContent = UserProfileScreenUiState.Content.Loaded(
     postsFooter = UserProfileScreenUiState.PostsFooter.None,
     media = listOf(),
     mediaEmptyMessage = "表示できるメディアはありません",
+    mediaLoadMoreButtonVisible = false,
+    mediaFooter = UserProfileScreenUiState.PostsFooter.None,
     likes = listOf(),
     likesEmptyMessage = null,
     likesFooter = UserProfileScreenUiState.PostsFooter.None,
@@ -495,6 +503,8 @@ private object AndroidPreviewUserProfileListener : UserProfileScreenUiState.List
     override fun onScrolledToEnd() = Unit
 
     override fun onClickRetryLoadMore() = Unit
+
+    override fun onClickLoadMoreMedia() = Unit
 
     override fun onClickSensitiveImagesVisibility() = Unit
 

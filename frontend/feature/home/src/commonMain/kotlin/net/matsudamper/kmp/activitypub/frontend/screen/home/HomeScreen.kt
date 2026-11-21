@@ -140,6 +140,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.ProfileHeaderImage
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinks
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaGridItem
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaLoadMoreButton
 import net.matsudamper.kmp.activitypub.frontend.ui.ReactionConfirmDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
@@ -1217,7 +1218,10 @@ internal fun UserTabContent(
                                     items(userPosts.media) { media ->
                                         ProfileMediaGridItem(media = media, modifier = Modifier.padding(1.dp))
                                     }
-                                    userContentFooter(footer = userPosts.postsFooter, onClickRetry = listener::onClickRetryLoadMoreUserContent)
+                                    if (userPosts.mediaLoadMoreButtonVisible) {
+                                        fullLineItem { ProfileMediaLoadMoreButton(onClick = listener::onClickLoadMoreUserMedia) }
+                                    }
+                                    userContentFooter(footer = userPosts.mediaFooter, onClickRetry = listener::onClickRetryLoadMoreUserContent)
                                 }
 
                                 ProfileContentTab.Likes -> {

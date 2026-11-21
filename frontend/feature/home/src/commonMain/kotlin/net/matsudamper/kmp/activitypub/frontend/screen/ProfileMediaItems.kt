@@ -27,3 +27,15 @@ internal fun createProfileMedia(
         }
     }
 }
+
+/**
+ * メディアのタブに出る画像が 1 枚でもあるか
+ */
+internal fun List<UserProfileResult.Post>.containsProfileMedia(): Boolean =
+    any { it.boostedNoteAuthor == null && it.body.images.isNotEmpty() }
+
+/**
+ * 画像の少ない相手では、画像の無いページを末尾の見張りで読み続けると最後のページまで止まらず、画像の取得の接続も塞ぐ。
+ * この数だけ画像の無いページが続いたら、自動では読まずにボタンで読ませる
+ */
+internal const val MEDIA_AUTO_LOAD_PAGE_LIMIT_WITHOUT_MEDIA = 3
