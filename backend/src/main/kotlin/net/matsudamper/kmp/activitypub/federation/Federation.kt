@@ -473,7 +473,7 @@ internal class Federation(
             directory = directory,
             service = InboxService(
                 verifier = HttpSignatureVerifier(
-                    RecordedFallbackPublicKeys(
+                    publicKeys = RecordedFallbackPublicKeys(
                         remote = remoteActors,
                         followers = followers,
                         favourites = favourites,
