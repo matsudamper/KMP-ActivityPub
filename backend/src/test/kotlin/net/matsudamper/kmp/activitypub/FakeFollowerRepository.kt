@@ -5,6 +5,7 @@ import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.ActorListPosition
 import net.matsudamper.kmp.activitypub.repository.FollowRecord
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
+import net.matsudamper.kmp.activitypub.repository.HostDeliveryInboxCount
 import net.matsudamper.kmp.activitypub.repository.ListedActor
 import net.matsudamper.kmp.activitypub.repository.RemoteActorProfileRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
@@ -102,6 +103,8 @@ internal class FakeFollowerRepository : FollowerRepository {
         .filter { it.actorUri != followerActorUri && URI(it.actorUri).host?.lowercase() == host }
         .map { it.sharedInbox ?: it.inbox }
         .toSet()
+
+    override fun countDeliveryInboxesByHost(): List<HostDeliveryInboxCount> = listOf()
 
     data class Rejected(
         val username: String,

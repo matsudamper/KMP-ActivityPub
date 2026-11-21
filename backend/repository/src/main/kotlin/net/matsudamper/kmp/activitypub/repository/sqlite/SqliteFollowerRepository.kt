@@ -5,6 +5,7 @@ import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.ActorListPosition
 import net.matsudamper.kmp.activitypub.repository.FollowRecord
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
+import net.matsudamper.kmp.activitypub.repository.HostDeliveryInboxCount
 import net.matsudamper.kmp.activitypub.repository.ListedActor
 import net.matsudamper.kmp.activitypub.repository.RemoteActorProfileRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
@@ -346,15 +347,38 @@ internal class SqliteFollowerRepository(
         followerActorUri: String,
         host: String,
     ): Set<String> = jooq.withConnection { dsl ->
+        dsl.findFollowerDeliveryInboxes()
+            .filter { it.actorUri != followerActorUri && it.actorHost == host }
+            .map { it.deliveryInbox }
+            .toSet()
+    }
+
+    override fun countDeliveryInboxesByHost(): List<HostDeliveryInboxCount> = jooq.withConnection { dsl ->
+        dsl.findFollowerDeliveryInboxes()
+            .mapNotNull { inbox -> inbox.actorHost?.let { host -> host to inbox.deliveryInbox } }
+            .groupBy(keySelector = { it.first }, valueTransform = { it.second })
+            .map { (host, inboxes) -> HostDeliveryInboxCount(host = host, deliveryInboxCount = inboxes.toSet().size) }
+            .sortedWith(compareByDescending<HostDeliveryInboxCount> { it.deliveryInboxCount }.thenBy { it.host })
+    }
+
+    /**
+     * フォローしてきた相手ごとの配る先。こちらのどのアカウントへのフォローかは問わず、Accept を送れる前のものも含める
+     */
+    private fun DSLContext.findFollowerDeliveryInboxes(): List<FollowerDeliveryInbox> {
         val deliveryInbox = DSL.coalesce(REMOTE_ACTORS.SHARED_INBOX, REMOTE_ACTORS.INBOX)
-        dsl.selectDistinct(REMOTE_ACTORS.ACTOR_URI, deliveryInbox)
+        return selectDistinct(REMOTE_ACTORS.ACTOR_URI, deliveryInbox)
             .from(ACCOUNT_FOLLOWERS)
             .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(ACCOUNT_FOLLOWERS.REMOTE_ACTOR_ID))
-            .where(REMOTE_ACTORS.ACTOR_URI.ne(followerActorUri))
             .fetch()
-            .filter { record -> runCatching { URI(record.value1()) }.getOrNull()?.host?.lowercase() == host }
-            .mapNotNull { it.value2() }
-            .toSet()
+            .mapNotNull { record ->
+                val actorUri = record.value1() ?: return@mapNotNull null
+                val inbox = record.value2() ?: return@mapNotNull null
+                FollowerDeliveryInbox(
+                    actorUri = actorUri,
+                    actorHost = runCatching { URI(actorUri) }.getOrNull()?.host?.lowercase(),
+                    deliveryInbox = inbox,
+                )
+            }
     }
 
     private fun DSLContext.findAccountId(username: String): Long? =
@@ -369,3 +393,12 @@ internal class SqliteFollowerRepository(
             .where(REMOTE_ACTORS.ACTOR_URI.eq(actorUri))
             .fetchOne(REMOTE_ACTORS.ID)
 }
+
+/**
+ * @param actorHost 相手のアクター URL の小文字のホスト。URL として読めなければ null
+ */
+private data class FollowerDeliveryInbox(
+    val actorUri: String,
+    val actorHost: String?,
+    val deliveryInbox: String,
+)

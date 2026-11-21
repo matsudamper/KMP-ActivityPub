@@ -307,6 +307,53 @@ class FollowerRepositoryTest {
         }
     }
 
+    @Test
+    fun `配る先の数をホストごとにアカウントを問わずに数え 多い順に返す`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            Accounts.insert(
+                databasePath = dbPath,
+                username = "user2",
+                passwordHash = "hash",
+                passwordHashType = "hash-type",
+                publicKeyPem = "public-key",
+                privateKeyPem = "private-key",
+                createdAt = NOW.toString(),
+            )
+            val followers = repositories.followerRepository
+            followers.recordFollow(FOLLOWER.copy(actorUri = "https://spam.example/users/a", inbox = "https://spam.example/users/a/inbox", sharedInbox = null))
+            followers.recordFollow(
+                FOLLOWER.copy(actorUri = "https://SPAM.example?actor=b", inbox = "https://spam.example/b/inbox", sharedInbox = null),
+                username = "user2",
+                followActivityUri = "https://spam.example/follows/b",
+            )
+            followers.recordFollow(
+                FOLLOWER.copy(actorUri = "https://spam.example/users/a", inbox = "https://spam.example/users/a/inbox", sharedInbox = null),
+                username = "user2",
+                followActivityUri = "https://spam.example/follows/a2",
+            )
+            followers.recordFollow(FOLLOWER, followActivityUri = "https://remote.example/follows/2")
+            followers.recordFollow(
+                FOLLOWER.copy(actorUri = "https://remote.example/users/carol", inbox = "https://remote.example/users/carol/inbox"),
+                followActivityUri = "https://remote.example/follows/3",
+            )
+
+            assertEquals(
+                listOf(
+                    HostDeliveryInboxCount(host = "spam.example", deliveryInboxCount = 2),
+                    HostDeliveryInboxCount(host = "remote.example", deliveryInboxCount = 1),
+                ),
+                followers.countDeliveryInboxesByHost(),
+            )
+        }
+    }
+
+    @Test
+    fun `フォロワーがいなければホストごとの配る先は空`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            assertEquals(listOf(), repositories.followerRepository.countDeliveryInboxesByHost())
+        }
+    }
+
     private fun FollowerRepository.recordFollow(
         follower: RemoteActorRecord,
         username: String = "user1",

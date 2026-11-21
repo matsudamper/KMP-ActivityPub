@@ -23,6 +23,7 @@ import net.matsudamper.kmp.activitypub.repository.PollRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.Repositories
 import net.matsudamper.kmp.activitypub.repository.ServerBlockRepository
+import net.matsudamper.kmp.activitypub.repository.ServerSettingsRepository
 import net.matsudamper.kmp.activitypub.repository.StampRepository
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 import net.matsudamper.kmp.activitypub.repository.UnknownObjectTypeRepository
@@ -56,6 +57,7 @@ internal class SqliteRepositories(
     override val customEmojiRepository: CustomEmojiRepository = SqliteCustomEmojiRepository(jooq)
     override val actorBlockRepository: ActorBlockRepository = SqliteActorBlockRepository(jooq)
     override val instanceActorKeyRepository: InstanceActorKeyRepository = SqliteInstanceActorKeyRepository(jooq)
+    override val serverSettingsRepository: ServerSettingsRepository = SqliteServerSettingsRepository(jooq)
 
     override val passkeyRepository: PasskeyRepository = SqlitePasskeyRepository(jooq)
 

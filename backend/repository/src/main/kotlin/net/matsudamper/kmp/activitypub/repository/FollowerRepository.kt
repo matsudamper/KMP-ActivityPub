@@ -129,7 +129,21 @@ interface FollowerRepository {
         followerActorUri: String,
         host: String,
     ): Set<String>
+
+    /**
+     * フォローで配る先の inbox の数を、相手のアクターのホストごとに返す。数の多い順。
+     * [findDeliveryInboxesOfOtherFollowersOnHost] と同じく、こちらのどのアカウントへのフォローかは問わず、Accept を送れる前のものも含める
+     */
+    fun countDeliveryInboxesByHost(): List<HostDeliveryInboxCount>
 }
+
+/**
+ * @param host 相手のアクター URL の小文字のホスト
+ */
+data class HostDeliveryInboxCount(
+    val host: String,
+    val deliveryInboxCount: Int,
+)
 
 /**
  * @param followActivityUri 相手が送ってきた Follow の id
