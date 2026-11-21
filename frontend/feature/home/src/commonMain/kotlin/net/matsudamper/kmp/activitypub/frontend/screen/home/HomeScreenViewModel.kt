@@ -795,8 +795,11 @@ internal class HomeScreenViewModel(
         }
         val nextCursor = (result as? UserProfilePostsResult.Success)?.takeIf { it.posts.isEmpty() }?.nextCursor ?: return
         val continuation = nextCursor.toNextMyPostsPageAfter(next) as? NextMyPostsPage.After ?: return
-        val applied = (viewModelStateFlow.value.myPosts as? MyPostsState.Loaded)?.posts?.next == continuation
-        if (applied) loadMyPostsPage(username = username, next = continuation)
+        val state = viewModelStateFlow.value
+        val posts = (state.myPosts as? MyPostsState.Loaded)?.posts ?: return
+        if (posts.next != continuation) return
+        if (state.userContentTab == ProfileContentTab.Media && posts.mediaAutoLoadPaused) return
+        loadMyPostsPage(username = username, next = continuation)
     }
 
     private fun loadMoreMyLikes() {

@@ -420,8 +420,11 @@ internal class UserProfileScreenViewModel(
         }
         val nextCursor = (result as? UserProfilePostsResult.Success)?.takeIf { it.posts.isEmpty() }?.nextCursor ?: return
         val continuation = nextCursor.toNextPostsAfter(next) as? NextPosts.After ?: return
-        val applied = (viewModelStateFlow.value.profile as? ProfileState.Loaded)?.posts?.next == continuation
-        if (applied) loadPosts(continuation)
+        val state = viewModelStateFlow.value
+        val posts = (state.profile as? ProfileState.Loaded)?.posts ?: return
+        if (posts.next != continuation) return
+        if (state.selectedTab == ProfileContentTab.Media && posts.mediaAutoLoadPaused) return
+        loadPosts(continuation)
     }
 
     /**
