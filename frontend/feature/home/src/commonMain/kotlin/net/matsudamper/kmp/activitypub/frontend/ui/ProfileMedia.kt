@@ -67,21 +67,7 @@ internal fun ProfileContentTabRow(
         // 切り替えてから動き出すと遅れて見えるので、スワイプの途中にも下線を追従させる
         indicator = {
             TabRowDefaults.PrimaryIndicator(
-                modifier = Modifier.tabIndicatorLayout { measurable, constraints, tabPositions ->
-                    val indicatorPosition = pagerIndicatorPosition(
-                        tabPositions = tabPositions,
-                        currentPage = pagerState.currentPage,
-                        currentPageOffsetFraction = pagerState.currentPageOffsetFraction,
-                    )
-                    val indicatorWidth = indicatorPosition.width.roundToPx()
-                    val placeable = measurable.measure(
-                        constraints.copy(minWidth = indicatorWidth, maxWidth = indicatorWidth),
-                    )
-                    // タブ行は下線の枠をタブ 1 つ分の幅に固定して開始端に置くので、その幅のまま返さないと中央に寄せられてずれる
-                    layout(constraints.maxWidth, placeable.height) {
-                        placeable.placeRelative(x = indicatorPosition.left.roundToPx(), y = 0)
-                    }
-                },
+                modifier = fixedTabRowPagerIndicatorModifier(pagerState = pagerState, matchContentWidth = true),
                 width = Dp.Unspecified,
             )
         },

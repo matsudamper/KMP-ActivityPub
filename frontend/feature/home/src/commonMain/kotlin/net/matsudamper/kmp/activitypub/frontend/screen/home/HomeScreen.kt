@@ -145,6 +145,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
 import net.matsudamper.kmp.activitypub.frontend.ui.TimelineItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.URL_COPIED_MESSAGE
 import net.matsudamper.kmp.activitypub.frontend.ui.contentType
+import net.matsudamper.kmp.activitypub.frontend.ui.fixedTabRowPagerIndicatorModifier
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 import net.matsudamper.kmp.activitypub.frontend.ui.pagerIndicatorPosition
 import net.matsudamper.kmp.activitypub.frontend.ui.rememberProfileContentPagerState
@@ -557,6 +558,7 @@ private fun TimelineTabsContent(
                                     tabPositions = tabPositions,
                                     currentPage = pagerState.currentPage,
                                     currentPageOffsetFraction = pagerState.currentPageOffsetFraction,
+                                    matchContentWidth = true,
                                 )
                                 val indicatorWidth = indicatorPosition.width.roundToPx()
                                 val placeable = measurable.measure(
@@ -975,7 +977,7 @@ internal fun SearchTabContent(
                     }
                 }
         }
-        SearchTargetTabRow(targets = search.targets, selectedTabIndex = pagerState.currentPage)
+        SearchTargetTabRow(targets = search.targets, pagerState = pagerState)
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.weight(1f),
@@ -1071,11 +1073,16 @@ private fun SearchResultContent(
 @Composable
 private fun SearchTargetTabRow(
     targets: List<HomeScreenUiState.SearchTarget>,
-    selectedTabIndex: Int,
+    pagerState: PagerState,
 ) {
     SecondaryTabRow(
-        selectedTabIndex = selectedTabIndex,
+        selectedTabIndex = pagerState.currentPage,
         modifier = Modifier.fillMaxWidth(),
+        indicator = {
+            TabRowDefaults.SecondaryIndicator(
+                modifier = fixedTabRowPagerIndicatorModifier(pagerState = pagerState, matchContentWidth = false),
+            )
+        },
     ) {
         targets.forEach { target ->
             Tab(
