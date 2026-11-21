@@ -12,6 +12,7 @@ import graphql.schema.CoercingSerializeException
 import graphql.schema.GraphQLScalarType
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.CustomEmojiId
+import net.matsudamper.kmp.activitypub.shared.DeletedRemoteNoteId
 import net.matsudamper.kmp.activitypub.shared.FailedDeliveryId
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
@@ -68,6 +69,15 @@ object GraphQlScalars {
             .newScalar()
             .name("FailedDeliveryId")
             .coercing(LongIdCoercing(name = "FailedDeliveryId", type = FailedDeliveryId::class.java, wrap = ::FailedDeliveryId, unwrap = FailedDeliveryId::value))
+            .build()
+
+    val deletedRemoteNoteId: GraphQLScalarType =
+        GraphQLScalarType
+            .newScalar()
+            .name("DeletedRemoteNoteId")
+            .coercing(
+                LongIdCoercing(name = "DeletedRemoteNoteId", type = DeletedRemoteNoteId::class.java, wrap = ::DeletedRemoteNoteId, unwrap = DeletedRemoteNoteId::value),
+            )
             .build()
 
     /**

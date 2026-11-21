@@ -6,6 +6,7 @@ import net.matsudamper.kmp.activitypub.logic.BlockLists
 import net.matsudamper.kmp.activitypub.logic.BoostService
 import net.matsudamper.kmp.activitypub.logic.CustomEmojiService
 import net.matsudamper.kmp.activitypub.logic.CustomEmojiUrls
+import net.matsudamper.kmp.activitypub.logic.DeletedRemoteNoteService
 import net.matsudamper.kmp.activitypub.logic.DeliveryTargetLimitService
 import net.matsudamper.kmp.activitypub.logic.FailedDeliveryService
 import net.matsudamper.kmp.activitypub.logic.FollowListService
@@ -64,6 +65,7 @@ class DiContainer(
     val loginThrottle: LoginThrottle,
     val adminAccountIds: Set<AccountId>,
     val failedDeliveryService: FailedDeliveryService,
+    val deletedRemoteNoteService: DeletedRemoteNoteService,
     val unknownObjectTypeService: UnknownObjectTypeService,
     val deliveryTargetLimitService: DeliveryTargetLimitService,
     /**

@@ -6,6 +6,7 @@ import net.matsudamper.kmp.activitypub.repository.ActorBlockRepository
 import net.matsudamper.kmp.activitypub.repository.BoostRepository
 import net.matsudamper.kmp.activitypub.repository.CustomEmojiRepository
 import net.matsudamper.kmp.activitypub.repository.DatabaseConfig
+import net.matsudamper.kmp.activitypub.repository.DeletedRemoteNoteRepository
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.FailedDeliveryRepository
 import net.matsudamper.kmp.activitypub.repository.FavouriteRepository
@@ -40,6 +41,7 @@ internal class SqliteRepositories(
     override val followerRepository: FollowerRepository = SqliteFollowerRepository(jooq)
     override val deliveryQueueRepository: DeliveryQueueRepository = SqliteDeliveryQueueRepository(jooq)
     override val failedDeliveryRepository: FailedDeliveryRepository = SqliteFailedDeliveryRepository(jooq)
+    override val deletedRemoteNoteRepository: DeletedRemoteNoteRepository = SqliteDeletedRemoteNoteRepository(jooq)
     override val unknownObjectTypeRepository: UnknownObjectTypeRepository = SqliteUnknownObjectTypeRepository(jooq)
     override val noteRepository: NoteRepository = SqliteNoteRepository(jooq)
     override val noteCountRepository: NoteCountRepository = SqliteNoteCountRepository(jooq)

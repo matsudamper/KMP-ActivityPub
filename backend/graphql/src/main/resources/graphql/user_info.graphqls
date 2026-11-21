@@ -37,6 +37,11 @@ type UserInfo {
     管理者でなければエラー
     """
     deliveryTargetLimit: DeliveryTargetLimit! @lazy
+    """
+    投稿者が消した他のサーバーの投稿を、受け取った新しい順に返す。タイムラインに削除済みと出すために残している。
+    after には前回の nextCursor を渡す。limit は 100 までに縮める。管理者でなければエラー
+    """
+    deletedRemoteNotes(after: String, limit: Int!): DeletedRemoteNotePage! @lazy
     "フォローを仕分けるグループ。作った順"
     followingGroups: [FollowingGroup!]! @lazy
     "どのグループにも入れていないフォローを入れるメインの名前"
@@ -110,6 +115,24 @@ type UnknownObjectType {
     seenCount: Int!
     firstSeenAt: String!
     lastSeenAt: String!
+}
+
+type DeletedRemoteNotePage {
+    notes: [DeletedRemoteNote!]!
+    nextCursor: String
+}
+
+"投稿者が消した他のサーバーの投稿"
+type DeletedRemoteNote {
+    id: DeletedRemoteNoteId!
+    objectUri: String!
+    actorUri: String!
+    "投稿者の preferredUsername。届いていなければ null"
+    actorName: String
+    "消される前の本文からタグを外した文字列"
+    contentText: String!
+    publishedAt: String!
+    deletedAt: String!
 }
 
 type DeliveryTargetLimit {
