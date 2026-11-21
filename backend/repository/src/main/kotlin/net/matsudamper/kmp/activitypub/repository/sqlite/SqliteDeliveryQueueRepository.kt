@@ -4,6 +4,7 @@ import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.ClaimedDelivery
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.EnqueueNoteResult
+import net.matsudamper.kmp.activitypub.repository.InboxHost
 import net.matsudamper.kmp.activitypub.repository.NoteDeletion
 import net.matsudamper.kmp.activitypub.repository.NotePost
 import net.matsudamper.kmp.activitypub.repository.NoteUpdate
@@ -329,6 +330,12 @@ internal class SqliteDeliveryQueueRepository(
         limit: Int,
         excludedInboxHosts: Set<String>,
     ): List<ClaimedDelivery> = jooq.transaction { dsl ->
+        val dueCondition = DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_PENDING)
+            .and(DELIVERY_QUEUE.NEXT_ATTEMPT_AT.le(StoredInstant.format(now)))
+            .andNot(likeWaitingForEarlierUndo(dsl))
+            .andNot(noteUpdateWaitingForCreate(dsl))
+        val claimedIds = claimableIds(dsl, dueCondition, limit, excludedInboxHosts)
+        if (claimedIds.isEmpty()) return@transaction listOf()
         val due =
             dsl.select(
                 DELIVERY_QUEUE.ID,
@@ -341,13 +348,8 @@ internal class SqliteDeliveryQueueRepository(
             )
                 .from(DELIVERY_QUEUE)
                 .join(ACCOUNTS).on(ACCOUNTS.ID.eq(DELIVERY_QUEUE.ACCOUNT_ID))
-                .where(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_PENDING))
-                .and(DELIVERY_QUEUE.NEXT_ATTEMPT_AT.le(StoredInstant.format(now)))
-                .andNot(likeWaitingForEarlierUndo(dsl))
-                .andNot(noteUpdateWaitingForCreate(dsl))
-                .and(DSL.and(excludedInboxHosts.map { host -> DSL.not(inboxOnHost(host)) }))
+                .where(DELIVERY_QUEUE.ID.`in`(claimedIds))
                 .orderBy(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, DELIVERY_QUEUE.ID)
-                .limit(limit)
                 .fetch { record ->
                     ClaimedDelivery(
                         id = checkNotNull(record.get(DELIVERY_QUEUE.ID)),
@@ -497,12 +499,36 @@ internal class SqliteDeliveryQueueRepository(
     }
 
     /**
-     * inbox の URL のホストが [host] か。ポート付きの URL も含める
+     * 取り出せる行の id を古い順に [limit] 件まで選ぶ。
+     *
+     * 除くホストの判定は [InboxHost] に揃える。SQL の文字列比較で真似ると、パスの無い URL などで
+     * 取り出し側の判定とずれて、送り終えていないホスト宛てを取り出してしまう
      */
-    private fun inboxOnHost(host: String): Condition {
-        val escapedHost = host.lowercase().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-        val inbox = DSL.lower(DELIVERY_QUEUE.INBOX)
-        return inbox.like("%://$escapedHost/%", '\\').or(inbox.like("%://$escapedHost:%", '\\'))
+    private fun claimableIds(
+        dsl: DSLContext,
+        dueCondition: Condition,
+        limit: Int,
+        excludedInboxHosts: Set<String>,
+    ): List<Long> {
+        val claimable = mutableListOf<Long>()
+        var offset = 0
+        while (claimable.size < limit && offset < MAX_CLAIM_SCAN) {
+            val page = dsl.select(DELIVERY_QUEUE.ID, DELIVERY_QUEUE.INBOX)
+                .from(DELIVERY_QUEUE)
+                .where(dueCondition)
+                .orderBy(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, DELIVERY_QUEUE.ID)
+                .limit(CLAIM_SCAN_PAGE)
+                .offset(offset)
+                .fetch()
+            page.forEach { record ->
+                if (claimable.size < limit && InboxHost.of(checkNotNull(record.get(DELIVERY_QUEUE.INBOX))) !in excludedInboxHosts) {
+                    claimable += checkNotNull(record.get(DELIVERY_QUEUE.ID))
+                }
+            }
+            if (page.size < CLAIM_SCAN_PAGE) break
+            offset += CLAIM_SCAN_PAGE
+        }
+        return claimable
     }
 
     private fun quotingNoteIdOf(acceptBody: Field<*>): Field<String> =
@@ -526,4 +552,13 @@ internal class SqliteDeliveryQueueRepository(
         val accountId: Long,
         val remoteActorId: Long?,
     )
+
+    private companion object {
+        const val CLAIM_SCAN_PAGE = 100
+
+        /**
+         * 除くホスト宛てばかりが並んでいても、1 回の取り出しで見るのはここまで。残りは次の取り出しで見る
+         */
+        const val MAX_CLAIM_SCAN = 2000
+    }
 }

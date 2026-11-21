@@ -93,6 +93,7 @@ class FollowDeliveryQueueRepositoryTest {
         listOf(
             "https://a.example/inbox",
             "https://A.example:8443/users/1/inbox",
+            "https://a.example",
             "https://b.example/inbox",
             "https://a.example.evil/inbox",
             "https://a_example/inbox",
@@ -102,7 +103,7 @@ class FollowDeliveryQueueRepositoryTest {
             queue.claim(NOW, 10, excludedInboxHosts = setOf("a.example")).map { it.inbox },
         )
         assertEquals(
-            listOf("https://a.example/inbox", "https://A.example:8443/users/1/inbox"),
+            listOf("https://a.example/inbox", "https://A.example:8443/users/1/inbox", "https://a.example"),
             queue.claim(NOW, 10).map { it.inbox },
         )
     }

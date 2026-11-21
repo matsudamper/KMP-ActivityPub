@@ -68,6 +68,8 @@ class DeliveryQueueWorker(
             val sendingScope = CoroutineScope(coroutineContext + sending)
             recoverDelivering()
             while (true) {
+                // 取り出した行は送り終えるまで手元に持つので、送っているホストの数で次を取り出すのを止める
+                while (inboxHostLanes.activeCount >= MAX_ACTIVE_HOSTS) laneClosedSignal.receive()
                 val hasMore =
                     try {
                         val claimed = claim()
@@ -82,10 +84,7 @@ class DeliveryQueueWorker(
                         recoverDelivering()
                         false
                     }
-                if (hasMore) {
-                    // 取り出した行は送り終えるまで手元に持つので、送っているホストの数で次を取り出すのを止める
-                    while (inboxHostLanes.activeCount >= MAX_ACTIVE_HOSTS) laneClosedSignal.receive()
-                } else {
+                if (!hasMore) {
                     withTimeoutOrNull(POLL_INTERVAL) { wakeUpSignal.receive() }
                 }
             }

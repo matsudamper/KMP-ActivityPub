@@ -1,9 +1,9 @@
 package net.matsudamper.kmp.activitypub.delivery
 
-import java.net.URI
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.repository.ClaimedDelivery
+import net.matsudamper.kmp.activitypub.repository.InboxHost
 
 /**
  * inbox のホストごとに 1 本ずつの、送る順番の列。
@@ -33,7 +33,7 @@ internal class InboxHostLanes(
     ) {
         val openedLanes = synchronized(lanes) {
             rows.mapNotNull { row ->
-                val host = hostOf(row.inbox)
+                val host = InboxHost.of(row.inbox)
                 val lane = lanes[host]
                 if (lane == null) {
                     ArrayDeque(listOf(row)).also { lanes[host] = it }.let { host to it }
@@ -68,13 +68,5 @@ internal class InboxHostLanes(
             }
             onLaneClosed()
         }
-    }
-
-    companion object {
-        /**
-         * URL として読めない inbox は、文字列そのものを 1 つのホストとして扱う
-         */
-        fun hostOf(inbox: String): String =
-            runCatching { URI(inbox).host }.getOrNull()?.lowercase() ?: inbox
     }
 }

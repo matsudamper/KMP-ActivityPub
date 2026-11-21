@@ -19,6 +19,7 @@ import io.opentelemetry.api.OpenTelemetry
 import net.matsudamper.kmp.activitypub.repository.ClaimedDelivery
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.EnqueueNoteResult
+import net.matsudamper.kmp.activitypub.repository.InboxHost
 import net.matsudamper.kmp.activitypub.repository.NoteDeletion
 import net.matsudamper.kmp.activitypub.repository.NotePost
 import net.matsudamper.kmp.activitypub.repository.NoteUpdate
@@ -109,6 +110,32 @@ class DeliveryQueueWorkerConcurrencyTest {
         }
     }
 
+    @Test
+    fun doesNotClaimMoreWhileTooManyHostsAreStillSending() = runBlocking {
+        val releaseSlow = CompletableDeferred<Unit>()
+        val lateDelivered = CompletableDeferred<Unit>()
+        // 1 回の取り出しが少なくても、送り終えていないホストが上限に達していれば取り出さない
+        val queue = Queue(List(MAX_ACTIVE_HOSTS) { row(id = it.toLong(), inbox = "https://slow$it.example/inbox") })
+        val worker = worker(queue) { inbox ->
+            if (inbox.startsWith("https://slow")) releaseSlow.await() else lateDelivered.complete(Unit)
+        }
+
+        val running = launch { worker.run() }
+        try {
+            withTimeout(5000) { while (queue.remaining() > 0) delay(10) }
+            queue.add(row(id = 100, inbox = "https://late.example/inbox"))
+            worker.wakeUp()
+            delay(200)
+            assertEquals(1, queue.remaining())
+
+            releaseSlow.complete(Unit)
+            withTimeout(5000) { lateDelivered.await() }
+        } finally {
+            releaseSlow.complete(Unit)
+            running.cancelAndJoin()
+        }
+    }
+
     private fun worker(queue: Queue, onDeliver: suspend (String) -> Unit) = DeliveryQueueWorker(
         queue,
         DeliverySenders { SENDER },
@@ -130,12 +157,20 @@ class DeliveryQueueWorkerConcurrencyTest {
         private val pending = rows.toMutableList()
         val delivered: MutableList<Long> = Collections.synchronizedList(mutableListOf())
 
+        @Synchronized
+        fun add(row: ClaimedDelivery) {
+            pending.add(row)
+        }
+
+        @Synchronized
+        fun remaining(): Int = pending.size
+
         val excludedOnEachClaim: MutableList<Set<String>> = Collections.synchronizedList(mutableListOf())
 
         @Synchronized
         override fun claim(now: Instant, limit: Int, excludedInboxHosts: Set<String>): List<ClaimedDelivery> {
             excludedOnEachClaim.add(excludedInboxHosts)
-            val claimed = pending.filter { InboxHostLanes.hostOf(it.inbox) !in excludedInboxHosts }.take(limit)
+            val claimed = pending.filter { InboxHost.of(it.inbox) !in excludedInboxHosts }.take(limit)
             pending.removeAll(claimed)
             return claimed
         }
@@ -156,6 +191,7 @@ class DeliveryQueueWorkerConcurrencyTest {
 
     private companion object {
         const val BATCH = 20
+        const val MAX_ACTIVE_HOSTS = 32
         val NOW: Instant = Instant.parse("2026-11-01T00:00:00Z")
         val SENDER = LocalActor(ActorUrls("local.example", "alice"), ActorPrivateKey(RsaKeys.generateKeyPair().private, ActorPrivateKey.Origin.Environment))
     }
