@@ -307,6 +307,26 @@ class FollowerRepositoryTest {
         }
     }
 
+    @Test
+    fun `断った後に受け付けると未送信の Reject を取り下げる`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val followers = repositories.followerRepository
+            followers.reject(
+                username = "user1",
+                followerActorUri = FOLLOWER.actorUri,
+                followActivityUri = FOLLOW_ACTIVITY_URI,
+                rejectsUnrecordedFollow = true,
+                inbox = FOLLOWER.inbox,
+                rejectBody = "reject",
+                now = NOW,
+            )
+
+            followers.recordFollow(FOLLOWER, followActivityUri = "https://remote.example/follows/2")
+
+            assertEquals(listOf(ACCEPT_BODY), repositories.deliveryQueueRepository.claim(now = NOW, limit = 10).map { it.body })
+        }
+    }
+
     private fun FollowerRepository.recordFollow(
         follower: RemoteActorRecord,
         username: String = "user1",

@@ -92,6 +92,14 @@ internal class SqliteFollowerRepository(
             .and(DELIVERY_QUEUE.ACCOUNT_ID.eq(accountId))
             .and(DELIVERY_QUEUE.REMOTE_ACTOR_ID.eq(remoteActorId))
             .execute()
+        // 前に断ったときの Reject が残っていると、Accept の後に届いて相手だけ断られたつもりになる。
+        // Reject の行は相手のアクターを持たないので、送る先の inbox で引く
+        dsl.deleteFrom(DELIVERY_QUEUE)
+            .where(DELIVERY_QUEUE.KIND.eq(DeliveryQueueValues.KIND_REJECT_FOLLOW))
+            .and(DELIVERY_QUEUE.ACCOUNT_ID.eq(accountId))
+            .and(DELIVERY_QUEUE.INBOX.eq(follower.inbox))
+            .and(DELIVERY_QUEUE.STATE.`in`(DeliveryQueueValues.STATE_PENDING, DeliveryQueueValues.STATE_DELIVERING))
+            .execute()
         dsl.insertInto(DELIVERY_QUEUE)
             .set(DELIVERY_QUEUE.KIND, DeliveryQueueValues.KIND_ACCEPT_FOLLOW)
             .set(DELIVERY_QUEUE.ACCOUNT_ID, accountId)
