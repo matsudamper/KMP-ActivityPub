@@ -229,7 +229,7 @@ private fun DeliveryTargetLimitSection(
             fontWeight = FontWeight.Bold,
         )
         Text(
-            text = "同じサーバーからのフォローで配る先の数と、その上限を確認できます。上限に達したサーバーからの新しいフォローは断ります。",
+            text = "同じサーバーからのフォローで配る先の数と、その上限を確認できます。配る先が増えて上限を超えるフォローは断ります。",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
