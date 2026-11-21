@@ -24,8 +24,6 @@ internal class DeliveryTargetLimitScreenViewModel(
         MutableStateFlow(
             ViewModelState(
                 limit = LimitState.Loading,
-                limitInput = "",
-                saving = false,
             ),
         )
     private var loadJob: Job? = null
@@ -38,14 +36,6 @@ internal class DeliveryTargetLimitScreenViewModel(
 
             override fun onClickRetry() {
                 load()
-            }
-
-            override fun onChangeLimitInput(value: String) {
-                viewModelStateFlow.update { it.copy(limitInput = value) }
-            }
-
-            override fun onClickSave() {
-                save()
             }
         }
 
@@ -66,10 +56,7 @@ internal class DeliveryTargetLimitScreenViewModel(
         loadJob = viewModelScope.launch {
             when (val result = api.deliveryTargetLimit()) {
                 is UserDeliveryTargetLimitResult.Success -> viewModelStateFlow.update {
-                    it.copy(
-                        limit = LimitState.Loaded(maxPerHost = result.maxPerHost, hosts = result.hosts),
-                        limitInput = result.maxPerHost.toString(),
-                    )
+                    it.copy(limit = LimitState.Loaded(maxPerHost = result.maxPerHost, hosts = result.hosts))
                 }
 
                 UserDeliveryTargetLimitResult.NotLoggedIn -> showLoadFailure("ログインしていません")
@@ -84,34 +71,6 @@ internal class DeliveryTargetLimitScreenViewModel(
         events.send { it.showMessage(message) }
     }
 
-    private fun save() {
-        val state = viewModelStateFlow.value
-        if (state.saving || state.limit !is LimitState.Loaded) return
-        val maxPerHost = state.limitInput.parseLimit() ?: return
-
-        viewModelStateFlow.update { it.copy(saving = true) }
-        viewModelScope.launch {
-            val error =
-                try {
-                    api.updateMaxDeliveryTargetsPerHost(maxPerHost)
-                } finally {
-                    viewModelStateFlow.update { it.copy(saving = false) }
-                }
-            if (error == null) {
-                viewModelStateFlow.update { current ->
-                    val limit = current.limit
-                    current.copy(
-                        limit = if (limit is LimitState.Loaded) limit.copy(maxPerHost = maxPerHost) else limit,
-                        limitInput = maxPerHost.toString(),
-                    )
-                }
-                events.send { it.showMessage("上限を $maxPerHost にしました") }
-            } else {
-                events.send { it.showMessage(error) }
-            }
-        }
-    }
-
     private fun createUiState(viewModelState: ViewModelState): DeliveryTargetLimitScreenUiState {
         return DeliveryTargetLimitScreenUiState(
             content = when (val limit = viewModelState.limit) {
@@ -119,17 +78,11 @@ internal class DeliveryTargetLimitScreenViewModel(
 
                 LimitState.Failed -> DeliveryTargetLimitScreenUiState.Content.LoadFailed
 
-                is LimitState.Loaded -> {
-                    val inputLimit = viewModelState.limitInput.parseLimit()
-                    DeliveryTargetLimitScreenUiState.Content.Loaded(
-                        currentLimitText = "今の上限: ${limit.maxPerHost}",
-                        limitInput = viewModelState.limitInput,
-                        limitInputEnabled = viewModelState.saving.not(),
-                        saveButtonEnabled = viewModelState.saving.not() && inputLimit != null && inputLimit != limit.maxPerHost,
-                        hosts = limit.hosts.map { createHost(host = it, maxPerHost = limit.maxPerHost) },
-                        emptyMessageVisible = limit.hosts.isEmpty(),
-                    )
-                }
+                is LimitState.Loaded -> DeliveryTargetLimitScreenUiState.Content.Loaded(
+                    limitText = limit.maxPerHost.toString(),
+                    hosts = limit.hosts.map { createHost(host = it, maxPerHost = limit.maxPerHost) },
+                    emptyMessageVisible = limit.hosts.isEmpty(),
+                )
             },
             listener = listener,
         )
@@ -146,8 +99,6 @@ internal class DeliveryTargetLimitScreenViewModel(
         )
     }
 
-    private fun String.parseLimit(): Int? = trim().toIntOrNull()
-
     internal interface Event {
         fun navigateBack()
 
@@ -156,8 +107,6 @@ internal class DeliveryTargetLimitScreenViewModel(
 
     private data class ViewModelState(
         val limit: LimitState,
-        val limitInput: String,
-        val saving: Boolean,
     )
 
     private sealed interface LimitState {

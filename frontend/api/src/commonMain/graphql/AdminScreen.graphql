@@ -74,11 +74,3 @@ query DeliveryTargetLimit {
         }
     }
 }
-
-mutation UpdateMaxDeliveryTargetsPerHost($maxPerHost: Int!) {
-    user {
-        updateMaxDeliveryTargetsPerHost(maxPerHost: $maxPerHost) {
-            failure
-        }
-    }
-}

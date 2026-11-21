@@ -76,7 +76,6 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.TimelineQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.UnblockAccountMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UnblockServerMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UnknownObjectTypesQuery
-import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateMaxDeliveryTargetsPerHostMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileHeaderMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileIconMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileMutation
@@ -106,7 +105,6 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.type.SetPinnedFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.SetReactionFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UnblockAccountFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UnblockServerFailure
-import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateMaxDeliveryTargetsPerHostFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileHeaderFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileIconFailure
@@ -861,23 +859,6 @@ class UserApi(
             maxPerHost = limit.maxPerHost,
             hosts = limit.hosts.map { UserDeliveryTargetHost(host = it.host, deliveryTargetCount = it.deliveryTargetCount) },
         )
-    }
-
-    /**
-     * @return 失敗したときに見せる文言。変えられたら null
-     */
-    suspend fun updateMaxDeliveryTargetsPerHost(maxPerHost: Int): String? {
-        val client = clients.client.value ?: return "接続先が未設定"
-        val response = client.mutation(UpdateMaxDeliveryTargetsPerHostMutation(maxPerHost = maxPerHost)).execute()
-        if (response.exception != null || response.hasErrors()) return response.failureMessage()
-        val result = response.data?.user?.updateMaxDeliveryTargetsPerHost ?: return response.failureMessage()
-        return when (result.failure) {
-            null -> null
-            UpdateMaxDeliveryTargetsPerHostFailure.NOT_LOGGED_IN -> "ログインしていません"
-            UpdateMaxDeliveryTargetsPerHostFailure.NOT_ADMIN -> "上限を変える権限がありません"
-            UpdateMaxDeliveryTargetsPerHostFailure.OUT_OF_RANGE -> "上限は 1〜1000 にしてください"
-            UpdateMaxDeliveryTargetsPerHostFailure.UNKNOWN__ -> "上限を変えられませんでした"
-        }
     }
 
     /**

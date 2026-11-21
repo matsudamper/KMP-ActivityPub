@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -32,14 +31,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
-import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
-import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -113,7 +109,7 @@ internal fun DeliveryTargetLimitContent(
                 }
 
                 is DeliveryTargetLimitScreenUiState.Content.Loaded -> {
-                    LoadedContent(content = content, listener = uiState.listener)
+                    LoadedContent(content = content)
                 }
             }
         }
@@ -123,7 +119,6 @@ internal fun DeliveryTargetLimitContent(
 @Composable
 private fun LoadedContent(
     content: DeliveryTargetLimitScreenUiState.Content.Loaded,
-    listener: DeliveryTargetLimitScreenUiState.Listener,
 ) {
     Column(
         modifier = Modifier
@@ -134,46 +129,13 @@ private fun LoadedContent(
     ) {
         Section(
             title = "上限",
-            description = "同じサーバーからのフォローで配る先の数の上限です。sharedInbox を持たないサーバーは、フォローしてきた人ごとに配る先が増えます。" +
-                "正当なサーバーが上限に達したら引き上げてください。",
+            description = "同じサーバーからのフォローで配る先の数の上限です。sharedInbox を持たないサーバーは、フォローしてきた人ごとに配る先が増えます。",
         ) {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text(
-                    text = content.currentLimitText,
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    SingleLineTextField(
-                        value = content.limitInput,
-                        onValueChange = listener::onChangeLimitInput,
-                        onImeAction = listener::onClickSave,
-                        label = "1〜1000",
-                        kind = SingleLineTextFieldKind.Plain,
-                        autofill = null,
-                        formId = null,
-                        required = true,
-                        imeAction = ImeAction.Done,
-                        inputId = "delivery-target-limit",
-                        inputName = "delivery-target-limit",
-                        enabled = content.limitInputEnabled,
-                        hasError = false,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Button(
-                        onClick = listener::onClickSave,
-                        enabled = content.saveButtonEnabled,
-                    ) {
-                        Text("保存")
-                    }
-                }
-            }
+            Text(
+                text = content.limitText,
+                modifier = Modifier.padding(16.dp),
+                style = MaterialTheme.typography.bodyLarge,
+            )
         }
         Section(
             title = "サーバーごとの配る先",

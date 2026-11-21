@@ -18,10 +18,7 @@ data class DeliveryTargetLimitScreenUiState(
          * @param hosts 配る先の数の多い順
          */
         data class Loaded(
-            val currentLimitText: String,
-            val limitInput: String,
-            val limitInputEnabled: Boolean,
-            val saveButtonEnabled: Boolean,
+            val limitText: String,
             val hosts: List<Host>,
             val emptyMessageVisible: Boolean,
         ) : Content
@@ -44,9 +41,5 @@ data class DeliveryTargetLimitScreenUiState(
         fun onClickBack()
 
         fun onClickRetry()
-
-        fun onChangeLimitInput(value: String)
-
-        fun onClickSave()
     }
 }

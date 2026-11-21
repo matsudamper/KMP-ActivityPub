@@ -12,10 +12,7 @@ private fun DeliveryTargetLimitContentPreview() {
         DeliveryTargetLimitContent(
             uiState = DeliveryTargetLimitScreenUiState(
                 content = DeliveryTargetLimitScreenUiState.Content.Loaded(
-                    currentLimitText = "今の上限: 20",
-                    limitInput = "30",
-                    limitInputEnabled = true,
-                    saveButtonEnabled = true,
+                    limitText = "20",
                     hosts = listOf(
                         previewHost(host = "no-shared-inbox.example", countText = "24 / 20", rowHighlighted = true),
                         previewHost(host = "small-server.example", countText = "20 / 20", rowHighlighted = true),
@@ -42,10 +39,7 @@ private fun DeliveryTargetLimitEmptyPreview() {
         DeliveryTargetLimitContent(
             uiState = DeliveryTargetLimitScreenUiState(
                 content = DeliveryTargetLimitScreenUiState.Content.Loaded(
-                    currentLimitText = "今の上限: 20",
-                    limitInput = "20",
-                    limitInputEnabled = true,
-                    saveButtonEnabled = false,
+                    limitText = "20",
                     hosts = listOf(),
                     emptyMessageVisible = true,
                 ),
@@ -71,8 +65,4 @@ private object AndroidPreviewDeliveryTargetLimitListener : DeliveryTargetLimitSc
     override fun onClickBack() = Unit
 
     override fun onClickRetry() = Unit
-
-    override fun onChangeLimitInput(value: String) = Unit
-
-    override fun onClickSave() = Unit
 }
