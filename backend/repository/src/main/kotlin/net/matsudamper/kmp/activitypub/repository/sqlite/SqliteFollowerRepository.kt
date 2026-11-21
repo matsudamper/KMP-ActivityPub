@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.repository.sqlite
 
+import java.net.URI
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.ActorListPosition
 import net.matsudamper.kmp.activitypub.repository.FollowRecord
@@ -336,6 +337,24 @@ internal class SqliteFollowerRepository(
             .and(ACCOUNT_FOLLOWERS.ACCEPTED_AT.isNotNull)
             .fetch(deliveryInbox)
             .filterNotNull()
+    }
+
+    /**
+     * ホストは SQL で切り出さずに URI として読んで比べる。文字列の前方一致だと、パスの無い URL やユーザー情報付きの URL で数え漏らす
+     */
+    override fun findDeliveryInboxesOfOtherFollowersOnHost(
+        followerActorUri: String,
+        host: String,
+    ): Set<String> = jooq.withConnection { dsl ->
+        val deliveryInbox = DSL.coalesce(REMOTE_ACTORS.SHARED_INBOX, REMOTE_ACTORS.INBOX)
+        dsl.selectDistinct(REMOTE_ACTORS.ACTOR_URI, deliveryInbox)
+            .from(ACCOUNT_FOLLOWERS)
+            .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(ACCOUNT_FOLLOWERS.REMOTE_ACTOR_ID))
+            .where(REMOTE_ACTORS.ACTOR_URI.ne(followerActorUri))
+            .fetch()
+            .filter { record -> runCatching { URI(record.value1()) }.getOrNull()?.host?.lowercase() == host }
+            .mapNotNull { it.value2() }
+            .toSet()
     }
 
     private fun DSLContext.findAccountId(username: String): Long? =

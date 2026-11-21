@@ -116,6 +116,19 @@ interface FollowerRepository {
      * 成立したフォローの相手の inbox。sharedInbox があればそちらにまとめる
      */
     fun findDeliveryInboxes(username: String): List<String>
+
+    /**
+     * [host] のアクターからのフォローで配る先の inbox。[followerActorUri] 自身の分は含めない。
+     * こちらのどのアカウントへのフォローかは問わず、Accept を送れる前のものも含める
+     *
+     * Follow を受け付けると相手の配る先は置き換わるので、置き換えた後の配る先の数はここに新しい配る先を足したものになる
+     *
+     * @param host 小文字のホスト
+     */
+    fun findDeliveryInboxesOfOtherFollowersOnHost(
+        followerActorUri: String,
+        host: String,
+    ): Set<String>
 }
 
 /**

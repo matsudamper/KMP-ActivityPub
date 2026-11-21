@@ -275,6 +275,38 @@ class FollowerRepositoryTest {
         }
     }
 
+    @Test
+    fun `同じホストの他のフォロワーの配る先をアカウントを問わずに返す`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            Accounts.insert(
+                databasePath = dbPath,
+                username = "user2",
+                passwordHash = "hash",
+                passwordHashType = "hash-type",
+                publicKeyPem = "public-key",
+                privateKeyPem = "private-key",
+                createdAt = NOW.toString(),
+            )
+            val followers = repositories.followerRepository
+            followers.recordFollow(FOLLOWER.copy(actorUri = "https://spam.example/users/a", inbox = "https://spam.example/users/a/inbox", sharedInbox = null))
+            followers.recordFollow(
+                FOLLOWER.copy(actorUri = "https://SPAM.example?actor=b", inbox = "https://spam.example/b/inbox", sharedInbox = null),
+                username = "user2",
+                followActivityUri = "https://spam.example/follows/b",
+            )
+            followers.recordFollow(FOLLOWER, followActivityUri = "https://remote.example/follows/2")
+
+            assertEquals(
+                setOf("https://spam.example/users/a/inbox", "https://spam.example/b/inbox"),
+                followers.findDeliveryInboxesOfOtherFollowersOnHost(followerActorUri = "https://spam.example/users/new", host = "spam.example"),
+            )
+            assertEquals(
+                setOf("https://spam.example/b/inbox"),
+                followers.findDeliveryInboxesOfOtherFollowersOnHost(followerActorUri = "https://spam.example/users/a", host = "spam.example"),
+            )
+        }
+    }
+
     private fun FollowerRepository.recordFollow(
         follower: RemoteActorRecord,
         username: String = "user1",
