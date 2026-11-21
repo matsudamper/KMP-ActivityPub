@@ -89,6 +89,16 @@ class FollowDeliveryQueueRepositoryTest {
     }
 
     @Test
+    fun claimReachesRowsBehindManyRowsOnExcludedHosts() = withQueue { queue, alice, _ ->
+        repeat(450) { queue.enqueueFollow(alice, "https://slow.example/inbox", followBody("slow-$it"), NOW) }
+        queue.enqueueFollow(alice, "https://other.example/inbox", followBody("other"), NOW)
+        assertEquals(
+            listOf("https://other.example/inbox"),
+            queue.claim(NOW, 10, excludedInboxHosts = setOf("slow.example")).map { it.inbox },
+        )
+    }
+
+    @Test
     fun claimSkipsInboxesOnExcludedHosts() = withQueue { queue, alice, _ ->
         listOf(
             "https://a.example/inbox",

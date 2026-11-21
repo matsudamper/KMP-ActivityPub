@@ -502,34 +502,40 @@ internal class SqliteDeliveryQueueRepository(
      * 取り出せる行の id を古い順に [limit] 件まで選ぶ。
      *
      * 除くホストの判定は [InboxHost] に揃える。SQL の文字列比較で真似ると、パスの無い URL などで
-     * 取り出し側の判定とずれて、送り終えていないホスト宛てを取り出してしまう
+     * 取り出し側の判定とずれて、送り終えていないホスト宛てを取り出してしまう。
+     * 除くホスト宛てが先頭に何件並んでいても後ろの行に届くよう、最後まで続けて見る
      */
     private fun claimableIds(
         dsl: DSLContext,
         dueCondition: Condition,
         limit: Int,
         excludedInboxHosts: Set<String>,
-    ): List<Long> {
-        val claimable = mutableListOf<Long>()
-        var offset = 0
-        while (claimable.size < limit && offset < MAX_CLAIM_SCAN) {
-            val page = dsl.select(DELIVERY_QUEUE.ID, DELIVERY_QUEUE.INBOX)
+    ): List<Long> = buildList {
+        var cursor: ClaimScanCursor? = null
+        while (size < limit) {
+            val page = dsl.select(DELIVERY_QUEUE.ID, DELIVERY_QUEUE.INBOX, DELIVERY_QUEUE.NEXT_ATTEMPT_AT)
                 .from(DELIVERY_QUEUE)
                 .where(dueCondition)
+                .and(cursor?.let { afterCursor(it) } ?: DSL.noCondition())
                 .orderBy(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, DELIVERY_QUEUE.ID)
                 .limit(CLAIM_SCAN_PAGE)
-                .offset(offset)
                 .fetch()
-            page.forEach { record ->
-                if (claimable.size < limit && InboxHost.of(checkNotNull(record.get(DELIVERY_QUEUE.INBOX))) !in excludedInboxHosts) {
-                    claimable += checkNotNull(record.get(DELIVERY_QUEUE.ID))
-                }
-            }
+            page.asSequence()
+                .filter { record -> InboxHost.of(checkNotNull(record.get(DELIVERY_QUEUE.INBOX))) !in excludedInboxHosts }
+                .take(limit - size)
+                .forEach { record -> add(checkNotNull(record.get(DELIVERY_QUEUE.ID))) }
             if (page.size < CLAIM_SCAN_PAGE) break
-            offset += CLAIM_SCAN_PAGE
+            val last = page.last()
+            cursor = ClaimScanCursor(
+                nextAttemptAt = checkNotNull(last.get(DELIVERY_QUEUE.NEXT_ATTEMPT_AT)),
+                id = checkNotNull(last.get(DELIVERY_QUEUE.ID)),
+            )
         }
-        return claimable
     }
+
+    private fun afterCursor(cursor: ClaimScanCursor): Condition =
+        DELIVERY_QUEUE.NEXT_ATTEMPT_AT.gt(cursor.nextAttemptAt)
+            .or(DELIVERY_QUEUE.NEXT_ATTEMPT_AT.eq(cursor.nextAttemptAt).and(DELIVERY_QUEUE.ID.gt(cursor.id)))
 
     private fun quotingNoteIdOf(acceptBody: Field<*>): Field<String> =
         DSL.field("json_extract({0}, '$.object.instrument')", String::class.java, acceptBody)
@@ -553,12 +559,12 @@ internal class SqliteDeliveryQueueRepository(
         val remoteActorId: Long?,
     )
 
-    private companion object {
-        const val CLAIM_SCAN_PAGE = 100
+    private data class ClaimScanCursor(
+        val nextAttemptAt: String,
+        val id: Long,
+    )
 
-        /**
-         * 除くホスト宛てばかりが並んでいても、1 回の取り出しで見るのはここまで。残りは次の取り出しで見る
-         */
-        const val MAX_CLAIM_SCAN = 2000
+    private companion object {
+        const val CLAIM_SCAN_PAGE = 200
     }
 }
