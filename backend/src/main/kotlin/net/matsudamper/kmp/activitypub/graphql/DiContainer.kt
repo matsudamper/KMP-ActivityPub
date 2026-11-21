@@ -6,6 +6,7 @@ import net.matsudamper.kmp.activitypub.logic.BlockLists
 import net.matsudamper.kmp.activitypub.logic.BoostService
 import net.matsudamper.kmp.activitypub.logic.CustomEmojiService
 import net.matsudamper.kmp.activitypub.logic.CustomEmojiUrls
+import net.matsudamper.kmp.activitypub.logic.DeliveryTargetLimitService
 import net.matsudamper.kmp.activitypub.logic.FailedDeliveryService
 import net.matsudamper.kmp.activitypub.logic.FollowListService
 import net.matsudamper.kmp.activitypub.logic.FollowingGroupService
@@ -64,6 +65,7 @@ class DiContainer(
     val adminAccountIds: Set<AccountId>,
     val failedDeliveryService: FailedDeliveryService,
     val unknownObjectTypeService: UnknownObjectTypeService,
+    val deliveryTargetLimitService: DeliveryTargetLimitService,
     /**
      * DOMAIN が無いと配れないので null
      */

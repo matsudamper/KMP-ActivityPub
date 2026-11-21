@@ -96,6 +96,24 @@ type UserMutation {
     noteId は ProfilePost.pinnableNoteId。既に望んだ状態なら何もせずに成功する
     """
     setPinned(noteId: PublicNoteId!, pinned: Boolean!): SetPinnedResult! @lazy
+    """
+    同じホストからのフォローで配る先の上限を変える。1 から 1000 まで。次に届く Follow から効く。
+    今の値は UserInfo.deliveryTargetLimit で読む
+    """
+    updateMaxDeliveryTargetsPerHost(maxPerHost: Int!): UpdateMaxDeliveryTargetsPerHostResult! @lazy
+}
+
+type UpdateMaxDeliveryTargetsPerHostResult {
+    "変えられたら null"
+    failure: UpdateMaxDeliveryTargetsPerHostFailure
+}
+
+enum UpdateMaxDeliveryTargetsPerHostFailure {
+    NOT_LOGGED_IN
+    "サーバーの ADMIN_USER_IDS に入っていない"
+    NOT_ADMIN
+    "1 から 1000 の範囲外"
+    OUT_OF_RANGE
 }
 
 type CreateFollowingGroupResult {

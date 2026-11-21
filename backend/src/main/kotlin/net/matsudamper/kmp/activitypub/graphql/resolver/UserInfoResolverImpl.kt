@@ -8,6 +8,8 @@ import graphql.schema.DataFetchingEnvironment
 import net.matsudamper.kmp.activitypub.graphql.GraphQlClientException
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
 import net.matsudamper.kmp.activitypub.graphql.model.QlBlockedAccount
+import net.matsudamper.kmp.activitypub.graphql.model.QlDeliveryTargetHost
+import net.matsudamper.kmp.activitypub.graphql.model.QlDeliveryTargetLimit
 import net.matsudamper.kmp.activitypub.graphql.model.QlFailedDelivery
 import net.matsudamper.kmp.activitypub.graphql.model.QlFailedDeliveryPage
 import net.matsudamper.kmp.activitypub.graphql.model.QlFollowingGroup
@@ -184,6 +186,23 @@ class UserInfoResolverImpl : UserInfoResolver {
                 )
                 DataFetcherResult.Builder(result).build()
             }
+        }
+    }
+
+    override fun deliveryTargetLimit(
+        userInfo: QlUserInfo,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlDeliveryTargetLimit>> {
+        requireAdmin(userInfo, env)
+        return otelSupplyAsync {
+            val service = GraphQlEngine.diContainer(env).deliveryTargetLimitService
+            val result = QlDeliveryTargetLimit(
+                maxPerHost = service.maxPerHost(),
+                hosts = service.hostCounts().map { count ->
+                    QlDeliveryTargetHost(host = count.host, deliveryTargetCount = count.deliveryInboxCount)
+                },
+            )
+            DataFetcherResult.Builder(result).build()
         }
     }
 
