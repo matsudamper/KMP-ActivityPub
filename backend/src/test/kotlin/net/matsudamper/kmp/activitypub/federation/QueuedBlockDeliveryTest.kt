@@ -108,7 +108,7 @@ class QueuedBlockDeliveryTest {
 
     private class Remote : RemoteActors {
         override suspend fun findActor(actorId: String): RemoteActorLookup =
-            RemoteActorLookup.Found(RemoteActor(actorId, "$actorId/inbox", null, "key", RemoteActorProfile("carol", null, null, null, null, emojis = listOf())))
+            RemoteActorLookup.Found(RemoteActor(actorId, "$actorId/inbox", null, "key", RemoteActorProfile("carol", null, null, null, null, emojis = listOf()), listOf()))
 
         override suspend fun find(keyId: String): PublicKeyLookup = PublicKeyLookup.Unavailable(RemoteFetchFailure.NotHttps(keyId))
 
