@@ -143,6 +143,15 @@ internal class SqliteFollowingRepository(
         dsl.fetchCount(ACCOUNT_FOLLOWING, ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(accountId.value)).toLong()
     }
 
+    override fun accountIdsFollowing(actorUri: String): List<AccountId> = jooq.withConnection { dsl ->
+        dsl.select(ACCOUNT_FOLLOWING.ACCOUNT_ID)
+            .from(ACCOUNT_FOLLOWING)
+            .where(ACCOUNT_FOLLOWING.ACTOR_URI.eq(actorUri))
+            .orderBy(ACCOUNT_FOLLOWING.ACCOUNT_ID)
+            .fetch(ACCOUNT_FOLLOWING.ACCOUNT_ID)
+            .map { AccountId(checkNotNull(it)) }
+    }
+
     override fun listAcceptedActorUris(username: String, after: String?, limit: Int): List<String> = jooq.withConnection { dsl ->
         val afterCondition = if (after == null) DSL.noCondition() else ACCOUNT_FOLLOWING.ACTOR_URI.gt(after)
         dsl.select(ACCOUNT_FOLLOWING.ACTOR_URI)
