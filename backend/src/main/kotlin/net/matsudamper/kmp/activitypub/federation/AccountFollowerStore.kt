@@ -55,7 +55,7 @@ internal class AccountFollowerStore(
         return recorded
     }
 
-    override fun refuses(username: String, followerActorUri: String): Boolean = blocks.blocks(username, followerActorUri)
+    override fun refuses(username: String, follower: RemoteActor): Boolean = blocks.blocks(username, follower.actorId)
 
     override fun reject(
         username: String,
