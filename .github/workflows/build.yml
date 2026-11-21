@@ -114,8 +114,11 @@ jobs:
           echo "$DEBUG_KEYSTORE_BASE64" | base64 --decode > "$DEBUG_KEYSTORE_PATH"
           echo "DEBUG_KEYSTORE_PATH=$DEBUG_KEYSTORE_PATH" >> "$GITHUB_ENV"
 
+      # PR の確認用は実機の arm64-v8a だけにして、ML Kit 翻訳のネイティブライブラリを 1 つに減らす
       - name: APK のビルド
-        run: ./gradlew :frontend:app-android:assembleDebug
+        env:
+          ABI_FILTERS_ARG: ${{ github.event_name == 'pull_request' && '-PapkAbiFilters=arm64-v8a' || '' }}
+        run: ./gradlew :frontend:app-android:assembleDebug $ABI_FILTERS_ARG
 
       - name: frontend のテスト
         run: ./gradlew testFrontend
@@ -134,13 +137,20 @@ jobs:
           echo "APK_NAME=${APK_NAME}" >> "$GITHUB_ENV"
           echo "APK_PATH=${APK_DIR}/${APK_NAME}" >> "$GITHUB_ENV"
 
+      # APK の中の dex と so は無圧縮で入っているので、配る前に zstd で縮める
+      - name: APK を zstd で圧縮
+        run: |
+          zstd -19 -T0 -q "${APK_PATH}" -o "${APK_PATH}.zst"
+          echo "APK_NAME=${APK_NAME}.zst" >> "$GITHUB_ENV"
+          echo "APK_PATH=${APK_PATH}.zst" >> "$GITHUB_ENV"
+
       - name: APK のアップロード
         id: upload_apk
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ env.APK_NAME }}
           path: ${{ env.APK_PATH }}
-          compression-level: 9
+          compression-level: 0
 
       - name: APK を S3 にアップロード
         id: upload_s3
