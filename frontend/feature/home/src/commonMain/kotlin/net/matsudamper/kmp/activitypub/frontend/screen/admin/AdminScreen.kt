@@ -1,17 +1,24 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.admin
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -27,6 +34,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -107,30 +115,22 @@ internal fun AdminContent(
         },
     ) { innerPadding ->
         Box(
-            modifier = Modifier.fillMaxSize().padding(innerPadding).padding(16.dp),
-            contentAlignment = Alignment.Center,
+            modifier = Modifier.fillMaxSize().padding(innerPadding),
+            contentAlignment = Alignment.TopCenter,
         ) {
             when (val content = uiState.content) {
                 AdminScreenUiState.Content.Loading -> {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
 
                 is AdminScreenUiState.Content.Loaded -> {
-                    Column(
-                        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(24.dp),
-                    ) {
-                        RemoteProfileRefreshSection(uiState = content.remoteProfileRefresh)
-                        FailedDeliveriesSection(onClickOpen = uiState.listener::onClickFailedDeliveries)
-                        UnknownObjectTypesSection(onClickOpen = uiState.listener::onClickUnknownObjectTypes)
-                        DeliveryTargetLimitSection(onClickOpen = uiState.listener::onClickDeliveryTargetLimit)
-                        DeletedRemoteNotesSection(onClickOpen = uiState.listener::onClickDeletedRemoteNotes)
-                    }
+                    AdminMenu(loaded = content, listener = uiState.listener)
                 }
 
                 is AdminScreenUiState.Content.Message -> {
                     Text(
                         text = content.message,
+                        modifier = Modifier.align(Alignment.Center).padding(16.dp),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -141,129 +141,172 @@ internal fun AdminContent(
 }
 
 @Composable
-private fun RemoteProfileRefreshSection(
+private fun AdminMenu(
+    loaded: AdminScreenUiState.Content.Loaded,
+    listener: AdminScreenUiState.Listener,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Column(
+            modifier = Modifier.widthIn(max = MENU_MAX_WIDTH).fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+        ) {
+            AdminSection(title = "投稿") {
+                AdminMenuItem(
+                    icon = AppIcons.Delete,
+                    title = "削除済みの投稿",
+                    description = "投稿者が消した他のサーバーの投稿。タイムラインに削除済みと出すために残しているものを消せます",
+                    onClick = listener::onClickDeletedRemoteNotes,
+                )
+            }
+            AdminSection(title = "配信") {
+                AdminMenuItem(
+                    icon = AppIcons.CloudOff,
+                    title = "諦めた配信",
+                    description = "送り直しても届かず、送るのを諦めた配信",
+                    onClick = listener::onClickFailedDeliveries,
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                AdminMenuItem(
+                    icon = AppIcons.CloudDone,
+                    title = "配る先の上限",
+                    description = "同じサーバーからのフォローで配る先の数と上限。上限を超えるフォローは断ります",
+                    onClick = listener::onClickDeliveryTargetLimit,
+                )
+            }
+            AdminSection(title = "受信") {
+                AdminMenuItem(
+                    icon = AppIcons.Search,
+                    title = "知らない型",
+                    description = "届いたもののうち、このサーバーが読み方を知らない型と、その出どころ",
+                    onClick = listener::onClickUnknownObjectTypes,
+                )
+            }
+            AdminSection(title = "他のサーバーのユーザー") {
+                RemoteProfileRefreshItem(uiState = loaded.remoteProfileRefresh)
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdminSection(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = title,
+            modifier = Modifier.padding(horizontal = 4.dp),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        ) {
+            content()
+        }
+    }
+}
+
+@Composable
+private fun AdminMenuItem(
+    icon: ImageVector,
+    title: String,
+    description: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(24.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Icon(
+            imageVector = AppIcons.ArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun RemoteProfileRefreshItem(
     uiState: AdminScreenUiState.RemoteProfileRefresh,
 ) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text(
-            text = "他のサーバーのユーザー",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
+        Icon(
+            imageVector = AppIcons.Person,
+            contentDescription = null,
+            modifier = Modifier.size(24.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Text(
-            text = "保存している他のサーバーのユーザー全員のプロフィールを、相手のサーバーから取り直します。" +
-                "相手のサーバーに負荷を掛けないよう 1 人ずつ取りに行くので、時間が掛かります。",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            text = uiState.statusText,
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        Button(
-            onClick = uiState.listener::onClickStart,
-            enabled = uiState.startButtonEnabled,
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(text = "全員を取り直す")
+            Text(
+                text = "プロフィールの取り直し",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = "保存している他のサーバーのユーザー全員のプロフィールを、相手のサーバーから取り直します。" +
+                    "相手のサーバーに負荷を掛けないよう 1 人ずつ取りに行くので、時間が掛かります。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = uiState.statusText,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            FilledTonalButton(
+                onClick = uiState.listener::onClickStart,
+                enabled = uiState.startButtonEnabled,
+            ) {
+                Icon(
+                    imageVector = AppIcons.Sync,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Text(
+                    text = "全員を取り直す",
+                    modifier = Modifier.padding(start = 8.dp),
+                )
+            }
         }
     }
 }
 
-@Composable
-private fun FailedDeliveriesSection(
-    onClickOpen: () -> Unit,
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(
-            text = "配信",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            text = "他のサーバーに送り直しても届かず、送るのを諦めた配信を確認できます。",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Button(onClick = onClickOpen) {
-            Text(text = "諦めた配信を見る")
-        }
-    }
-}
-
-@Composable
-private fun UnknownObjectTypesSection(
-    onClickOpen: () -> Unit,
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(
-            text = "受信",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            text = "他のサーバーから届いたもののうち、このサーバーが読み方を知らない型と、その出どころを確認できます。",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Button(onClick = onClickOpen) {
-            Text(text = "知らない型を見る")
-        }
-    }
-}
-
-@Composable
-private fun DeliveryTargetLimitSection(
-    onClickOpen: () -> Unit,
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(
-            text = "フォロー",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            text = "同じサーバーからのフォローで配る先の数と、その上限を確認できます。配る先が増えて上限を超えるフォローは断ります。",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Button(onClick = onClickOpen) {
-            Text(text = "配る先の上限を見る")
-        }
-    }
-}
-
-@Composable
-private fun DeletedRemoteNotesSection(
-    onClickOpen: () -> Unit,
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(
-            text = "削除済みの投稿",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            text = "投稿者が消した他のサーバーの投稿を確認し、保存から削除できます。",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Button(onClick = onClickOpen) {
-            Text(text = "削除済みの投稿を見る")
-        }
-    }
-}
+private val MENU_MAX_WIDTH = 720.dp
