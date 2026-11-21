@@ -37,6 +37,15 @@ internal class PublicAddressHttpClient : AutoCloseable {
             .build()
 
     /**
+     * 本文を読みながら流すと、下流への書き込みを待つ間も呼び出しが続く。
+     * 全体の時間で切ると、下流が遅いだけで正常な転送を打ち切るので、全体の時間だけは見ない
+     */
+    private val streamingClient: OkHttpClient =
+        client.newBuilder()
+            .callTimeout(Duration.ZERO)
+            .build()
+
+    /**
      * 200 で返ったものだけ返す。取れなければ null
      *
      * @param maxBytes 読むのはここまで。超えていたかは [Response.bytes] が [maxBytes] より長いかで分かる
@@ -137,7 +146,7 @@ internal class PublicAddressHttpClient : AutoCloseable {
             .build()
         val response =
             try {
-                withOpenTelemetryContext { runInterruptible { client.newCall(request).execute() } }
+                withOpenTelemetryContext { runInterruptible { streamingClient.newCall(request).execute() } }
             } catch (_: IOException) {
                 return OpenResult.Failure
             }
