@@ -15,6 +15,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyLoginResult
 import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyOptionsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLoginResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLoginStateResult
 import org.koin.core.annotation.KoinViewModel
 
 @KoinViewModel
@@ -88,6 +89,11 @@ internal class LoginScreenViewModel(
         viewModelScope.launch {
             api.ready.collect { ready ->
                 viewModelStateFlow.update { it.copy(apiReady = ready) }
+            }
+        }
+        viewModelScope.launch {
+            if (api.loginState() == UserLoginStateResult.LoggedIn) {
+                events.send { it.loggedIn() }
             }
         }
     }
