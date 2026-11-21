@@ -1,12 +1,12 @@
 package net.matsudamper.kmp.activitypub.logic
 
+import java.io.IOException
 import java.net.URI
 import java.security.MessageDigest
 import java.time.Instant
 import java.util.Base64
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
-import kotlinx.coroutines.sync.Semaphore
 
 /**
  * 他のサーバーの画像を、このサーバーを通して配る。
@@ -15,16 +15,12 @@ import kotlinx.coroutines.sync.Semaphore
  * このサーバーが発行した URL だけを中継する。誰の指定でも取りに行くと、このサーバーを踏み台にされる
  *
  * @param origin `https://example.com` の形。末尾に / を付けない
- * @param maxConcurrentFetches 取得から送り終えるまで画像はメモリに丸ごと載るので、ログインなしで何度でも呼べる中継が使い切らないよう絞る
  */
 class RemoteImageProxy(
     private val origin: String,
     private val signingKey: ByteArray,
     private val fetcher: RemoteImageFetcher,
-    maxConcurrentFetches: Int,
 ) {
-    private val fetchPermits = Semaphore(maxConcurrentFetches)
-
     /**
      * http と https 以外は取りに行けないので null
      */
@@ -38,9 +34,6 @@ class RemoteImageProxy(
         return "$origin$PATH_PREFIX/$encodedUrl/${sign(remoteUrl)}$PATH_SUFFIX$version"
     }
 
-    /**
-     * 取得した画像は [respond] が返るまでメモリに残るので、送り終えるまで同時取得数の枠を手放さない
-     */
     suspend fun <T> fetch(
         encodedUrl: String,
         signature: String,
@@ -52,20 +45,36 @@ class RemoteImageProxy(
         val signatureMatches = MessageDigest.isEqual(sign(remoteUrl).encodeToByteArray(), signature.encodeToByteArray())
         if (!signatureMatches) return respond(RemoteImageProxyResult.NotIssued)
 
-        if (!fetchPermits.tryAcquire()) return respond(RemoteImageProxyResult.Busy)
-        return try {
-            respond(fetchImage(remoteUrl))
-        } finally {
-            fetchPermits.release()
+        val body = fetcher.open(remoteUrl) ?: return respond(RemoteImageProxyResult.Unavailable)
+        return body.use {
+            // 応答を書き始める前の失敗なので、取れなかったこととして返せる
+            val result =
+                try {
+                    inspect(body)
+                } catch (_: IOException) {
+                    RemoteImageProxyResult.Unavailable
+                }
+            respond(result)
         }
     }
 
-    private suspend fun fetchImage(remoteUrl: String): RemoteImageProxyResult {
-        val bytes = fetcher.fetch(url = remoteUrl, maxBytes = MAX_IMAGE_BYTES) ?: return RemoteImageProxyResult.Unavailable
-        val contentType = ImageFormat.detect(bytes)?.contentType
-            ?: ICO_CONTENT_TYPE.takeIf { bytes.isIco() }
+    /**
+     * 応答を書き始めた後は失敗を返せないので、形式と大きさは先頭を読んだ時点で確かめる
+     */
+    private suspend fun inspect(body: RemoteImageBody): RemoteImageProxyResult {
+        val contentLength = body.contentLength
+        if (contentLength != null && contentLength > MAX_IMAGE_BYTES) return RemoteImageProxyResult.Unavailable
+        val head = body.readHead(ImageFormat.SIGNATURE_BYTES)
+        val contentType = ImageFormat.detect(head)?.contentType
+            ?: ICO_CONTENT_TYPE.takeIf { head.isIco() }
             ?: return RemoteImageProxyResult.Unavailable
-        return RemoteImageProxyResult.Found(bytes = bytes, contentType = contentType)
+        return RemoteImageProxyResult.Found(
+            contentType = contentType,
+            contentLength = contentLength,
+            head = head,
+            rest = body,
+            maxBytes = MAX_IMAGE_BYTES,
+        )
     }
 
     /**
@@ -102,19 +111,65 @@ class RemoteImageProxy(
 
 fun interface RemoteImageFetcher {
     /**
-     * 取れなかったときと [maxBytes] を超えたときは null
+     * 取れなければ null。返した本文は呼び出し側が閉じる
      */
-    suspend fun fetch(
-        url: String,
-        maxBytes: Int,
-    ): ByteArray?
+    suspend fun open(url: String): RemoteImageBody?
+}
+
+interface RemoteImageBody : AutoCloseable {
+    /**
+     * 相手が名乗った大きさ。名乗っていなければ null
+     */
+    val contentLength: Long?
+
+    /**
+     * [buffer] に読んだバイト数。終わりなら -1
+     */
+    suspend fun read(buffer: ByteArray): Int
+}
+
+private suspend fun RemoteImageBody.readHead(size: Int): ByteArray {
+    var head = ByteArray(0)
+    while (head.size < size) {
+        val chunk = ByteArray(size - head.size)
+        val read = read(chunk)
+        if (read < 0) break
+        head += chunk.copyOf(read)
+    }
+    return head
 }
 
 sealed interface RemoteImageProxyResult {
+    /**
+     * 本文は相手から読みながら流す。画像を丸ごとメモリに載せない
+     */
     class Found(
-        val bytes: ByteArray,
         val contentType: String,
-    ) : RemoteImageProxyResult
+        val contentLength: Long?,
+        private val head: ByteArray,
+        private val rest: RemoteImageBody,
+        private val maxBytes: Int,
+    ) : RemoteImageProxyResult {
+        /**
+         * 上限を超えたら [IOException] で打ち切る。応答を書き始めた後なので、接続を切るしかない
+         */
+        suspend fun copyTo(write: suspend (buffer: ByteArray, length: Int) -> Unit) {
+            write(head, head.size)
+            var total = head.size.toLong()
+            val buffer = ByteArray(COPY_BUFFER_BYTES)
+            while (true) {
+                val read = rest.read(buffer)
+                if (read < 0) return
+                total += read
+                if (total > maxBytes) throw IOException("画像が上限 $maxBytes バイトを超えた")
+                write(buffer, read)
+            }
+        }
+
+        private companion object {
+            const val COPY_BUFFER_BYTES = 64 * 1024
+        }
+    }
 
     /**
      * このサーバーが発行していない URL
@@ -125,9 +180,4 @@ sealed interface RemoteImageProxyResult {
      * 相手から取れないか、受け付ける画像の形式ではない
      */
     data object Unavailable : RemoteImageProxyResult
-
-    /**
-     * 同時に取りに行ける数を使い切っている。待たせると接続とメモリがたまるので、取りに行かずに断る
-     */
-    data object Busy : RemoteImageProxyResult
 }

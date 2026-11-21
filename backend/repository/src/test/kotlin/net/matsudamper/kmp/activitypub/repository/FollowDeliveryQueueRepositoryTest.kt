@@ -11,43 +11,43 @@ class FollowDeliveryQueueRepositoryTest {
     @Test
     fun unfollowCancelsRetryingFollowAndEnqueuesUndoBecauseItMayHaveArrived() = withQueue { queue, alice, bob ->
         queue.enqueueFollow(alice, INBOX, followBody("follow"), NOW)
-        val follow = queue.claim(NOW, 10).single()
+        val follow = queue.claim(NOW, 10, setOf()).single()
         assertEquals("follow", follow.kind)
         queue.scheduleRetry(follow.id, NOW.plusSeconds(3600), "接続失敗")
         queue.enqueueFollow(bob, INBOX, followBody("other-account"), NOW)
         queue.enqueueFollow(alice, "$INBOX/other", followBody("other-inbox"), NOW)
         queue.cancelPendingFollowAndEnqueueUndo(alice, INBOX, "follow", "undo", NOW)
-        assertEquals(listOf(followBody("other-account"), followBody("other-inbox"), "undo"), queue.claim(NOW.plusSeconds(7200), 10).map { it.body })
-        assertTrue(queue.claim(NOW.plusSeconds(10800), 10).isEmpty())
+        assertEquals(listOf(followBody("other-account"), followBody("other-inbox"), "undo"), queue.claim(NOW.plusSeconds(7200), 10, setOf()).map { it.body })
+        assertTrue(queue.claim(NOW.plusSeconds(10800), 10, setOf()).isEmpty())
     }
 
     @Test
     fun unfollowEnqueuesUndoAfterFollowWasDelivered() = withQueue { queue, alice, _ ->
         queue.enqueueFollow(alice, INBOX, followBody("follow"), NOW)
-        queue.markDelivered(queue.claim(NOW, 10).single().id, NOW)
+        queue.markDelivered(queue.claim(NOW, 10, setOf()).single().id, NOW)
         queue.cancelPendingFollowAndEnqueueUndo(alice, INBOX, "follow", "undo", NOW)
-        assertEquals(listOf("undo"), queue.claim(NOW, 10).map { it.body })
+        assertEquals(listOf("undo"), queue.claim(NOW, 10, setOf()).map { it.body })
     }
 
     @Test
     fun unfollowKeepsDeliveringFollowAndEnqueuesUndoEvenWhenPendingFollowIsRemoved() = withQueue { queue, alice, _ ->
         queue.enqueueFollow(alice, INBOX, followBody("follow"), NOW)
-        val delivering = queue.claim(NOW, 10).single()
+        val delivering = queue.claim(NOW, 10, setOf()).single()
         queue.enqueueFollow(alice, INBOX, followBody("follow"), NOW)
         queue.cancelPendingFollowAndEnqueueUndo(alice, INBOX, "follow", "undo", NOW)
-        assertEquals(listOf("undo"), queue.claim(NOW, 10).map { it.body })
+        assertEquals(listOf("undo"), queue.claim(NOW, 10, setOf()).map { it.body })
         assertEquals(2, queue.recoverDelivering(NOW))
-        assertEquals(listOf(followBody("follow"), "undo"), queue.claim(NOW, 10).map { it.body })
+        assertEquals(listOf(followBody("follow"), "undo"), queue.claim(NOW, 10, setOf()).map { it.body })
         queue.markDelivered(delivering.id, NOW)
     }
 
     @Test
     fun sameInboxFollowForAnotherActorDoesNotCancelOrSuppressUndo() = withQueue { queue, alice, _ ->
         queue.enqueueFollow(alice, INBOX, followBody("actor-a"), NOW)
-        queue.markDelivered(queue.claim(NOW, 10).single().id, NOW)
+        queue.markDelivered(queue.claim(NOW, 10, setOf()).single().id, NOW)
         queue.enqueueFollow(alice, INBOX, followBody("actor-b"), NOW)
         queue.cancelPendingFollowAndEnqueueUndo(alice, INBOX, "actor-a", "undo-a", NOW)
-        assertEquals(listOf(followBody("actor-b"), "undo-a"), queue.claim(NOW, 10).map { it.body })
+        assertEquals(listOf(followBody("actor-b"), "undo-a"), queue.claim(NOW, 10, setOf()).map { it.body })
     }
 
     @Test
@@ -55,16 +55,16 @@ class FollowDeliveryQueueRepositoryTest {
         queue.enqueueFollow(alice, INBOX, followBody("actor-a"), NOW)
         queue.enqueueFollow(alice, INBOX, followBody("actor-b"), NOW)
         queue.cancelPendingFollowAndEnqueueUndo(alice, INBOX, "actor-a", "undo-a", NOW)
-        assertEquals(listOf(followBody("actor-b")), queue.claim(NOW, 10).map { it.body })
+        assertEquals(listOf(followBody("actor-b")), queue.claim(NOW, 10, setOf()).map { it.body })
     }
 
     @Test
     fun otherActorsDeliveringFollowDoesNotCauseUnnecessaryUndo() = withQueue { queue, alice, _ ->
         queue.enqueueFollow(alice, INBOX, followBody("actor-b"), NOW)
-        queue.claim(NOW, 10)
+        queue.claim(NOW, 10, setOf())
         queue.enqueueFollow(alice, INBOX, followBody("actor-a"), NOW)
         queue.cancelPendingFollowAndEnqueueUndo(alice, INBOX, "actor-a", "undo-a", NOW)
-        assertTrue(queue.claim(NOW, 10).isEmpty())
+        assertTrue(queue.claim(NOW, 10, setOf()).isEmpty())
     }
 
     @Test
@@ -73,19 +73,49 @@ class FollowDeliveryQueueRepositoryTest {
         queue.enqueueQuoteAccept(alice, INBOX, quoteAcceptBody("accept-2", "note-a"), NOW)
         queue.enqueueQuoteAccept(alice, INBOX, quoteAcceptBody("accept-3", "note-b"), NOW)
         queue.enqueueQuoteAccept(bob, INBOX, quoteAcceptBody("accept-4", "note-a"), NOW)
-        val delivering = queue.claim(NOW, 10)
+        val delivering = queue.claim(NOW, 10, setOf())
         assertEquals(listOf("accept-1", "accept-3", "accept-4"), delivering.map { it.body.substringAfter("\"id\":\"").substringBefore('"') })
 
         queue.enqueueQuoteAccept(alice, INBOX, quoteAcceptBody("accept-5", "note-a"), NOW)
-        assertTrue(queue.claim(NOW, 10).isEmpty())
+        assertTrue(queue.claim(NOW, 10, setOf()).isEmpty())
     }
 
     @Test
     fun quoteAcceptCanBeEnqueuedAgainAfterDelivered() = withQueue { queue, alice, _ ->
         queue.enqueueQuoteAccept(alice, INBOX, quoteAcceptBody("accept-1", "note-a"), NOW)
-        queue.markDelivered(queue.claim(NOW, 10).single().id, NOW)
+        queue.markDelivered(queue.claim(NOW, 10, setOf()).single().id, NOW)
         queue.enqueueQuoteAccept(alice, INBOX, quoteAcceptBody("accept-2", "note-a"), NOW)
-        assertEquals(listOf(quoteAcceptBody("accept-2", "note-a")), queue.claim(NOW, 10).map { it.body })
+        assertEquals(listOf(quoteAcceptBody("accept-2", "note-a")), queue.claim(NOW, 10, setOf()).map { it.body })
+    }
+
+    @Test
+    fun claimReachesRowsBehindManyRowsOnExcludedHosts() = withQueue { queue, alice, _ ->
+        repeat(450) { queue.enqueueFollow(alice, "https://slow.example/inbox", followBody("slow-$it"), NOW) }
+        queue.enqueueFollow(alice, "https://other.example/inbox", followBody("other"), NOW)
+        assertEquals(
+            listOf("https://other.example/inbox"),
+            queue.claim(NOW, 10, excludedInboxHosts = setOf("slow.example")).map { it.inbox },
+        )
+    }
+
+    @Test
+    fun claimSkipsInboxesOnExcludedHosts() = withQueue { queue, alice, _ ->
+        listOf(
+            "https://a.example/inbox",
+            "https://A.example:8443/users/1/inbox",
+            "https://a.example",
+            "https://b.example/inbox",
+            "https://a.example.evil/inbox",
+            "https://a_example/inbox",
+        ).forEach { inbox -> queue.enqueueFollow(alice, inbox, followBody(inbox), NOW) }
+        assertEquals(
+            listOf("https://b.example/inbox", "https://a.example.evil/inbox", "https://a_example/inbox"),
+            queue.claim(NOW, 10, excludedInboxHosts = setOf("a.example")).map { it.inbox },
+        )
+        assertEquals(
+            listOf("https://a.example/inbox", "https://A.example:8443/users/1/inbox", "https://a.example"),
+            queue.claim(NOW, 10, setOf()).map { it.inbox },
+        )
     }
 
     private fun quoteAcceptBody(id: String, instrument: String): String =

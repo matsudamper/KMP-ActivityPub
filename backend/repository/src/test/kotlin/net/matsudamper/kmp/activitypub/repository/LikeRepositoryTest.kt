@@ -24,7 +24,7 @@ class LikeRepositoryTest {
 
         assertEquals(true, repositories.timelineRepository.hydrate(alice, listOf(member)).single().likedByMe)
         assertEquals(false, repositories.timelineRepository.hydrate(bob, listOf(member)).single().likedByMe)
-        assertEquals(listOf(likeBody("like-1")), repositories.deliveryQueueRepository.claim(NOW, 10).map { it.body })
+        assertEquals(listOf(likeBody("like-1")), repositories.deliveryQueueRepository.claim(NOW, 10, setOf()).map { it.body })
     }
 
     @Test
@@ -102,7 +102,7 @@ class LikeRepositoryTest {
         assertEquals(2L, repositories.timelineRepository.hydrate(bob, listOf(member)).single().favouriteCount)
         assertEquals(mapOf(PublicNoteId("bob-note") to 2L), repositories.favouriteRepository.counts(setOf(PublicNoteId("bob-note"))))
         assertEquals(setOf(PublicNoteId("bob-note")), likes.likedLocalNotes(alice, setOf(PublicNoteId("bob-note"))))
-        assertTrue(repositories.deliveryQueueRepository.claim(NOW, 10).isEmpty())
+        assertTrue(repositories.deliveryQueueRepository.claim(NOW, 10, setOf()).isEmpty())
     }
 
     @Test
@@ -129,7 +129,7 @@ class LikeRepositoryTest {
 
         assertTrue(likes.unlikeAndEnqueueUndo(alice, member, NOW) { likeId, _, _ -> "undo:$likeId" })
 
-        assertTrue(repositories.deliveryQueueRepository.claim(NOW, 10).isEmpty())
+        assertTrue(repositories.deliveryQueueRepository.claim(NOW, 10, setOf()).isEmpty())
         assertEquals(false, repositories.timelineRepository.hydrate(alice, listOf(member)).single().likedByMe)
         assertFalse(likes.unlikeAndEnqueueUndo(alice, member, NOW) { likeId, _, _ -> "undo:$likeId" })
     }
@@ -140,11 +140,11 @@ class LikeRepositoryTest {
         val likes = repositories.likeRepository
         val queue = repositories.deliveryQueueRepository
         likes.likeAndEnqueue(like(alice, member, "like-1"))
-        queue.markDelivered(queue.claim(NOW, 10).single().id, NOW)
+        queue.markDelivered(queue.claim(NOW, 10, setOf()).single().id, NOW)
 
         assertTrue(likes.unlikeAndEnqueueUndo(alice, member, NOW) { likeId, _, _ -> "undo:$likeId" })
 
-        assertEquals(listOf("undo:like-1"), queue.claim(NOW, 10).map { it.body })
+        assertEquals(listOf("undo:like-1"), queue.claim(NOW, 10, setOf()).map { it.body })
     }
 
     @Test
@@ -154,18 +154,18 @@ class LikeRepositoryTest {
         val queue = repositories.deliveryQueueRepository
         val objectUri = "$ACTOR/notes/1"
         likes.likeAndEnqueue(like(alice, member, "like-1").copy(body = jsonLikeBody("like-1", objectUri)))
-        queue.markDelivered(queue.claim(NOW, 10).single().id, NOW)
+        queue.markDelivered(queue.claim(NOW, 10, setOf()).single().id, NOW)
         likes.unlikeAndEnqueueUndo(alice, member, NOW) { likeId, uri, _ -> jsonUndoBody(likeId, uri) }
         likes.likeAndEnqueue(like(alice, member, "like-2").copy(body = jsonLikeBody("like-2", objectUri)))
 
-        val undo = queue.claim(NOW, 10).single()
+        val undo = queue.claim(NOW, 10, setOf()).single()
         assertEquals(jsonUndoBody("like-1", objectUri), undo.body)
 
         queue.scheduleRetry(undo.id, NOW, "failed")
-        assertEquals(listOf(jsonUndoBody("like-1", objectUri)), queue.claim(NOW, 10).map { it.body })
+        assertEquals(listOf(jsonUndoBody("like-1", objectUri)), queue.claim(NOW, 10, setOf()).map { it.body })
 
         queue.markDelivered(undo.id, NOW)
-        assertEquals(listOf(jsonLikeBody("like-2", objectUri)), queue.claim(NOW, 10).map { it.body })
+        assertEquals(listOf(jsonLikeBody("like-2", objectUri)), queue.claim(NOW, 10, setOf()).map { it.body })
     }
 
     private fun jsonLikeBody(id: String, objectUri: String): String = """{"id":"$id","type":"Like","object":"$objectUri"}"""
@@ -181,7 +181,7 @@ class LikeRepositoryTest {
         val kotlin = assertNotNull(repositories.customEmojiRepository.add(customEmoji(shortcode = "kotlin", publicId = "kotlin-image", uploadedBy = bob)))
         val reaction = LikeReaction(emoji = ":kotlin:", customEmojiId = kotlin.id)
         likes.likeAndEnqueue(like(alice, member, "like-1", reaction = reaction))
-        queue.markDelivered(queue.claim(NOW, 10).single().id, NOW)
+        queue.markDelivered(queue.claim(NOW, 10, setOf()).single().id, NOW)
 
         var undoneReaction: LikeReaction? = null
         assertTrue(
@@ -200,11 +200,11 @@ class LikeRepositoryTest {
         val likes = repositories.likeRepository
         val queue = repositories.deliveryQueueRepository
         likes.likeAndEnqueue(like(alice, member, "like-1"))
-        queue.scheduleRetry(queue.claim(NOW, 10).single().id, NOW, "接続失敗")
+        queue.scheduleRetry(queue.claim(NOW, 10, setOf()).single().id, NOW, "接続失敗")
 
         assertTrue(likes.unlikeAndEnqueueUndo(alice, member, NOW) { likeId, _, _ -> "undo:$likeId" })
 
-        assertEquals(listOf("undo:like-1"), queue.claim(NOW, 10).map { it.body })
+        assertEquals(listOf("undo:like-1"), queue.claim(NOW, 10, setOf()).map { it.body })
     }
 
     @Test
@@ -213,12 +213,12 @@ class LikeRepositoryTest {
         val likes = repositories.likeRepository
         val queue = repositories.deliveryQueueRepository
         likes.likeAndEnqueue(like(alice, member, "like-1"))
-        val delivering = queue.claim(NOW, 10).single()
+        val delivering = queue.claim(NOW, 10, setOf()).single()
 
         assertTrue(likes.unlikeAndEnqueueUndo(alice, member, NOW) { likeId, _, _ -> "undo:$likeId" })
         queue.scheduleRetry(delivering.id, NOW, "接続失敗")
 
-        assertEquals(listOf("undo:like-1"), queue.claim(NOW, 10).map { it.body })
+        assertEquals(listOf("undo:like-1"), queue.claim(NOW, 10, setOf()).map { it.body })
     }
 
     @Test
@@ -227,12 +227,12 @@ class LikeRepositoryTest {
         val likes = repositories.likeRepository
         val queue = repositories.deliveryQueueRepository
         likes.likeAndEnqueue(like(alice, member, "like-1"))
-        queue.claim(NOW, 10)
+        queue.claim(NOW, 10, setOf())
 
         assertTrue(likes.unlikeAndEnqueueUndo(alice, member, NOW) { likeId, _, _ -> "undo:$likeId" })
         queue.recoverDelivering(NOW)
 
-        assertEquals(listOf("undo:like-1"), queue.claim(NOW, 10).map { it.body })
+        assertEquals(listOf("undo:like-1"), queue.claim(NOW, 10, setOf()).map { it.body })
     }
 
     @Test
@@ -259,7 +259,7 @@ class LikeRepositoryTest {
         assertEquals(LikeTarget.Remote(objectUri = "$ACTOR/notes/boosted", inbox = "$ACTOR/inbox"), likes.target(bob, boostMember))
         assertTrue(likes.likeAndEnqueue(like(alice, boostMember, "like-1")))
         assertEquals(true, repositories.timelineRepository.hydrate(alice, listOf(boostMember)).single().likedByMe)
-        assertEquals(listOf(likeBody("like-1")), repositories.deliveryQueueRepository.claim(NOW, 10).map { it.body })
+        assertEquals(listOf(likeBody("like-1")), repositories.deliveryQueueRepository.claim(NOW, 10, setOf()).map { it.body })
 
         assertTrue(likes.unlikeAndEnqueueUndo(alice, boostMember, NOW) { likeId, _, _ -> "undo:$likeId" })
         assertEquals(false, repositories.timelineRepository.hydrate(alice, listOf(boostMember)).single().likedByMe)
@@ -271,12 +271,12 @@ class LikeRepositoryTest {
         val likes = repositories.likeRepository
         val queue = repositories.deliveryQueueRepository
         likes.likeAndEnqueue(like(alice, member, "like-1"))
-        queue.markDelivered(queue.claim(NOW, 10).single().id, NOW)
+        queue.markDelivered(queue.claim(NOW, 10, setOf()).single().id, NOW)
         repositories.followingRepository.remove(alice, ACTOR)
 
         assertTrue(likes.unlikeAndEnqueueUndo(alice, member, NOW) { likeId, objectUri, _ -> "undo:$likeId:$objectUri" })
 
-        assertEquals(listOf("$ACTOR/inbox" to "undo:like-1:$ACTOR/notes/1"), queue.claim(NOW, 10).map { it.inbox to it.body })
+        assertEquals(listOf("$ACTOR/inbox" to "undo:like-1:$ACTOR/notes/1"), queue.claim(NOW, 10, setOf()).map { it.inbox to it.body })
     }
 
     @Test
