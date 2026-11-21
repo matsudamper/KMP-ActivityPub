@@ -14,12 +14,14 @@ import net.matsudamper.kotpub.follower.FollowerStore
 
 /**
  * @param onEnqueued Accept か Reject を積んだ後に呼ぶ。相手の画面ではフォローが保留のまま待っているので、次の巡回を待たずに送らせる
+ * @param maxDeliveryTargetsPerHost 同じホストからのフォローで配る先の上限。判定のたびに読み直す
  */
 internal class AccountFollowerStore(
     private val followerRepository: FollowerRepository,
     private val blocks: InboxBlocks,
     private val notifications: NotificationRecorder,
     private val onEnqueued: () -> Unit,
+    private val maxDeliveryTargetsPerHost: () -> Int,
 ) : FollowerStore {
     override fun record(
         username: String,
@@ -55,7 +57,8 @@ internal class AccountFollowerStore(
         return recorded
     }
 
-    override fun refuses(username: String, follower: RemoteActor): Boolean = blocks.blocks(username, follower.actorId)
+    override fun refuses(username: String, follower: RemoteActor): Boolean =
+        blocks.blocks(username, follower.actorId) || exceedsDeliveryTargetLimit(follower)
 
     override fun reject(
         username: String,
@@ -124,6 +127,30 @@ internal class AccountFollowerStore(
     override fun count(username: String): Long = followerRepository.countAcceptedFollowers(username)
 
     override fun deliveryTargets(username: String): List<String> = followerRepository.findDeliveryInboxes(username)
+
+    /**
+     * 受け付けると同じホストからのフォローの配る先が上限を超えるか。
+     *
+     * sharedInbox を持たず inbox を 1 人ずつ分けた偽アクターを並べると、投稿 1 件ごとの配信がその人数分に増える。
+     * 鍵付きのアクターはいくらでも作れるので件数で止める。アクター文書を置くホストは相手が用意する必要があるので、ホストごとに数える。
+     * 配信を受け持つのはこのサーバーなので、こちらのアカウントは問わずにまとめて数える
+     *
+     * 受け付けると相手の配る先は置き換わるので、置き換えた後の数で比べる。配る先が増えない Follow は、上限を下げて既に超えている状態でも断らない。
+     * 記録済みの相手が送り直しただけで、記録済みのフォローまで外れる
+     */
+    private fun exceedsDeliveryTargetLimit(follower: RemoteActor): Boolean {
+        val host = ServerHost.ofUri(follower.actorId) ?: return false
+        val othersDeliveryInboxes = followerRepository.findDeliveryInboxesOfOtherFollowersOnHost(
+            followerActorUri = follower.actorId,
+            host = host,
+        )
+        val deliveryInbox = follower.sharedInbox ?: follower.inbox
+        val countAfter = (othersDeliveryInboxes + deliveryInbox).size
+        if (countAfter <= maxDeliveryTargetsPerHost()) return false
+
+        val countBefore = (othersDeliveryInboxes + listOfNotNull(followerRepository.findCurrentDeliveryInbox(follower.actorId))).size
+        return countAfter > countBefore
+    }
 
     private fun RemoteActorProfile.toRecord(): RemoteActorProfileRecord =
         RemoteActorProfileRecord(

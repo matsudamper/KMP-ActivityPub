@@ -17,6 +17,7 @@ import net.matsudamper.kmp.activitypub.logic.BlockLists
 import net.matsudamper.kmp.activitypub.logic.BoostService
 import net.matsudamper.kmp.activitypub.logic.CustomEmojiService
 import net.matsudamper.kmp.activitypub.logic.CustomEmojiUrls
+import net.matsudamper.kmp.activitypub.logic.DeliveryTargetLimitService
 import net.matsudamper.kmp.activitypub.logic.LikeService
 import net.matsudamper.kmp.activitypub.logic.LinkPreviewService
 import net.matsudamper.kmp.activitypub.logic.LocalNoteEmojiObjects
@@ -128,6 +129,7 @@ internal class Federation(
     imageStorage: ImageStorage?,
     instanceActorKeyRepository: InstanceActorKeyRepository,
     unknownObjectTypeRepository: UnknownObjectTypeRepository,
+    deliveryTargetLimitService: DeliveryTargetLimitService,
     remoteIconProxySigningKey: ByteArray,
     openTelemetry: OpenTelemetry,
 ) : AutoCloseable {
@@ -191,6 +193,7 @@ internal class Federation(
             blocks = inboxBlocks,
             notifications = notificationService,
             onEnqueued = deliveryQueueWorker::wakeUp,
+            maxDeliveryTargetsPerHost = { deliveryTargetLimitService.maxPerHost },
         )
 
     private val kotpubRemoteUserLookup =

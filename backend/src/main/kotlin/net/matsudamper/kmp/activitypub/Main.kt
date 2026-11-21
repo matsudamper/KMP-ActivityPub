@@ -172,6 +172,7 @@ internal fun Application.module(deps: AppDependencies) {
                 adminAccountIds = deps.env.adminAccountIds,
                 failedDeliveryService = deps.failedDeliveryService,
                 unknownObjectTypeService = deps.unknownObjectTypeService,
+                deliveryTargetLimitService = deps.deliveryTargetLimitService,
                 notePostService = federation?.notePostService,
                 profileUpdateService = federation?.profileUpdateService,
                 likeService = federation?.likeService,

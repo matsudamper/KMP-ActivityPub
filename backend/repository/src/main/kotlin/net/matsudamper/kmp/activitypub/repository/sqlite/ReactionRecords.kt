@@ -18,6 +18,9 @@ import org.jooq.impl.DSL
 /**
  * お気に入りやスタンプを押した相手を記録する。署名の検証に通った鍵なので、公開鍵も置き換える
  *
+ * 記録済みの相手の inbox と sharedInbox は置き換えない。フォロワーの行と共有しているので、
+ * ここで置き換えると Follow での配る先の上限の確認を通らずに配る先を増やせる
+ *
  * @return 記録したアクターの id
  */
 internal fun DSLContext.upsertRemoteActor(
@@ -39,8 +42,6 @@ internal fun DSLContext.upsertRemoteActor(
         .set(REMOTE_ACTORS.UPDATED_AT, storedUpdatedAt)
         .onConflict(REMOTE_ACTORS.ACTOR_URI)
         .doUpdate()
-        .set(REMOTE_ACTORS.INBOX, actor.inbox)
-        .set(REMOTE_ACTORS.SHARED_INBOX, actor.sharedInbox)
         .set(REMOTE_ACTORS.PUBLIC_KEY_PEM, actor.publicKeyPem)
         .set(REMOTE_ACTORS.PREFERRED_USERNAME, profile.preferredUsername)
         .set(REMOTE_ACTORS.DISPLAY_NAME, profile.displayName)
