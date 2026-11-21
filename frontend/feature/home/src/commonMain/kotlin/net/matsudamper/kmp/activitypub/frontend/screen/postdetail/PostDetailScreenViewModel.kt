@@ -577,9 +577,13 @@ internal class PostDetailScreenViewModel(
         createPostItemQuote(
             hasQuoteTarget = post.hasQuoteTarget,
             load = viewModelState.quotes[post.id],
+            sensitiveImagesBlurred = true,
+            blurToggledImageUrls = viewModelState.blurToggledImageUrls,
             onOpenPostDetail = { postId -> viewModelScope.launch { events.send { it.navigateToPostDetail(postId) } } },
             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
             onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
+            onOpenImage = { urls, index -> viewModelScope.launch { events.send { it.navigateToImage(urls, index) } } },
+            onToggleImageBlur = { imageUrls, toggled -> toggleImageBlur(imageUrls, toggled) },
         )
 
     /**

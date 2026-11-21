@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -100,12 +101,34 @@ internal fun PostQuoteCard(
                         maxLines = QUOTE_BODY_MAX_LINES,
                         overflow = TextOverflow.Ellipsis,
                     )
+                    if (quote.images.isNotEmpty()) {
+                        QuoteImages(images = quote.images)
+                    }
                 }
             }
         }
     }
 }
 
+/**
+ * 枚数が増えても引用の枠が縦に伸びないよう、1 行に並べて高さを揃える
+ */
+@Composable
+private fun QuoteImages(images: List<PostItemUiState.Image>) {
+    Row(
+        modifier = Modifier.padding(top = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        images.forEach { image ->
+            PostImageTile(
+                image = image,
+                modifier = Modifier.weight(1f).height(QuoteImageHeight),
+            )
+        }
+    }
+}
+
 private val QuoteCardMinHeight = 56.dp
 private val QuoteIconSize = 20.dp
+private val QuoteImageHeight = 96.dp
 private const val QUOTE_BODY_MAX_LINES = 6
