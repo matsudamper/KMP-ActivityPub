@@ -80,6 +80,7 @@ class AccountFollowerStoreTest {
             maxDeliveryTargetsPerHost = { limit },
         )
         recordSpamFollowersUpToLimit()
+        assertTrue(store.refuses("alice", actor("https://spam.example/users/new")))
 
         limit = LIMIT + 1
 

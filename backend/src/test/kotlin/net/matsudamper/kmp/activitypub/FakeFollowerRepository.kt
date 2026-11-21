@@ -99,7 +99,7 @@ internal class FakeFollowerRepository : FollowerRepository {
         followerActorUri: String,
         host: String,
     ): Set<String> = followerActors
-        .filter { it.actorUri != followerActorUri && URI(it.actorUri).host == host }
+        .filter { it.actorUri != followerActorUri && URI(it.actorUri).host?.lowercase() == host }
         .map { it.sharedInbox ?: it.inbox }
         .toSet()
 
