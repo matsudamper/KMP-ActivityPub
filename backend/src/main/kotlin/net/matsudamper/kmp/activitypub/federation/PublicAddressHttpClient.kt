@@ -4,8 +4,10 @@ import java.io.IOException
 import java.net.InetAddress
 import java.net.Proxy
 import java.time.Duration
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.runInterruptible
+import net.matsudamper.kmp.activitypub.logic.RemoteImageBody
 import net.matsudamper.kmp.activitypub.telemetry.withOpenTelemetryContext
 import net.matsudamper.kotpub.http.PublicAddressDnsResolver
 import okhttp3.Dns
@@ -35,6 +37,15 @@ internal class PublicAddressHttpClient : AutoCloseable {
             .build()
 
     /**
+     * 本文を読みながら流すと、下流への書き込みを待つ間も呼び出しが続く。
+     * 全体の時間で切ると、下流が遅いだけで正常な転送を打ち切るので、全体の時間だけは見ない
+     */
+    private val streamingClient: OkHttpClient =
+        client.newBuilder()
+            .callTimeout(Duration.ZERO)
+            .build()
+
+    /**
      * 200 で返ったものだけ返す。取れなければ null
      *
      * @param maxBytes 読むのはここまで。超えていたかは [Response.bytes] が [maxBytes] より長いかで分かる
@@ -51,6 +62,25 @@ internal class PublicAddressHttpClient : AutoCloseable {
                 is FetchResult.Redirect -> target = result.location ?: return null
                 is FetchResult.Found -> return result.response
                 FetchResult.Failure -> return null
+            }
+        }
+        return null
+    }
+
+    /**
+     * [get] と同じ宛先の確かめ方で、本文を読まずに開いたまま返す。200 以外や取れなければ null
+     */
+    suspend fun open(
+        url: String,
+        accept: String,
+    ): RemoteImageBody? {
+        var target = url.toHttpUrlOrNull() ?: return null
+        repeat(MAX_REDIRECTS + 1) {
+            if (!isPublic(target)) return null
+            when (val result = openOnce(target, accept)) {
+                is OpenResult.Redirect -> target = result.location ?: return null
+                is OpenResult.Opened -> return result.body
+                OpenResult.Failure -> return null
             }
         }
         return null
@@ -102,6 +132,49 @@ internal class PublicAddressHttpClient : AutoCloseable {
         } catch (_: IOException) {
             FetchResult.Failure
         }
+    }
+
+    private suspend fun openOnce(
+        url: HttpUrl,
+        accept: String,
+    ): OpenResult {
+        val request = Request.Builder()
+            .url(url)
+            .header("Accept", accept)
+            .header("User-Agent", USER_AGENT)
+            .get()
+            .build()
+        val response =
+            try {
+                withOpenTelemetryContext { runInterruptible { streamingClient.newCall(request).execute() } }
+            } catch (_: IOException) {
+                return OpenResult.Failure
+            }
+        return when {
+            response.isRedirect -> response.use { OpenResult.Redirect(it.header("Location")?.let { location -> url.resolve(location) }) }
+            response.code != 200 -> response.use { OpenResult.Failure }
+            else -> OpenResult.Opened(OkHttpRemoteImageBody(response))
+        }
+    }
+
+    private class OkHttpRemoteImageBody(
+        private val response: okhttp3.Response,
+    ) : RemoteImageBody {
+        override val contentLength: Long? = response.body.contentLength().takeIf { it >= 0 }
+
+        override suspend fun read(buffer: ByteArray): Int = runInterruptible(Dispatchers.IO) { response.body.source().read(buffer) }
+
+        override fun close() {
+            response.close()
+        }
+    }
+
+    private sealed interface OpenResult {
+        class Redirect(val location: HttpUrl?) : OpenResult
+
+        class Opened(val body: RemoteImageBody) : OpenResult
+
+        data object Failure : OpenResult
     }
 
     class Response(

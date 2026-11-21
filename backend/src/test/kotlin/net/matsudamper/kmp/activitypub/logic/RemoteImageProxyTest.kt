@@ -1,15 +1,16 @@
 package net.matsudamper.kmp.activitypub.logic
 
+import java.io.ByteArrayOutputStream
+import java.io.IOException
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 
 @Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
@@ -25,7 +26,7 @@ class RemoteImageProxyTest {
 
         val result = fetch(checkNotNull(proxy.proxyUrlOf(REMOTE_URL)))
 
-        val found = assertIs<RemoteImageProxyResult.Found>(result)
+        val found = assertIs<FoundImage>(result)
         assertContentEquals(png, found.bytes)
         assertEquals("image/png", found.contentType)
         assertEquals(listOf(REMOTE_URL), fetchedUrls)
@@ -52,8 +53,8 @@ class RemoteImageProxyTest {
         assertEquals(versioned, proxy.proxyUrlOf(REMOTE_URL, updatedAt))
         assertNotEquals(versioned, nextVersion)
         assertEquals(true, versioned.substringAfter("?v=").matches(Regex("[A-Za-z0-9_-]+")))
-        assertIs<RemoteImageProxyResult.Found>(fetch(versioned))
-        assertIs<RemoteImageProxyResult.Found>(fetch(nextVersion))
+        assertIs<FoundImage>(fetch(versioned))
+        assertIs<FoundImage>(fetch(nextVersion))
         assertEquals(listOf(REMOTE_URL, REMOTE_URL), fetchedUrls)
     }
 
@@ -99,7 +100,7 @@ class RemoteImageProxyTest {
         val ico = byteArrayOf(0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x10, 0x10, 0x00, 0x00, 0x01, 0x00)
         remoteIcons[REMOTE_URL] = ico
 
-        val found = assertIs<RemoteImageProxyResult.Found>(fetch(checkNotNull(proxy.proxyUrlOf(REMOTE_URL))))
+        val found = assertIs<FoundImage>(fetch(checkNotNull(proxy.proxyUrlOf(REMOTE_URL))))
 
         assertContentEquals(ico, found.bytes)
         assertEquals("image/x-icon", found.contentType)
@@ -111,75 +112,66 @@ class RemoteImageProxyTest {
     }
 
     @Test
-    fun `同時に取りに行ける数を使い切っていれば取りに行かずに Busy を返し、空けば再び取りに行く`() {
-        remoteIcons[REMOTE_URL] = TestProfileIcons.read("400x400.png")
-        val fetchStarted = CompletableDeferred<Unit>()
-        val releaseFetch = CompletableDeferred<Unit>()
-        val singleFetchProxy =
+    fun `名乗った大きさが上限を超えていれば読まずに Unavailable`() {
+        val png = TestProfileIcons.read("400x400.png")
+        val tooLargeProxy =
             RemoteImageProxy(
                 origin = "https://example.com",
                 signingKey = "key-1".encodeToByteArray(),
-                fetcher = { url, _ ->
-                    fetchedUrls += url
-                    fetchStarted.complete(Unit)
-                    releaseFetch.await()
-                    remoteIcons[url]
-                },
-                maxConcurrentFetches = 1,
+                fetcher = { ByteArrayRemoteImageBody(png, contentLength = NotePostService.MAX_IMAGE_BYTES + 1L) },
             )
-        val (encodedUrl, signature) = split(checkNotNull(singleFetchProxy.proxyUrlOf(REMOTE_URL)))
+        val (encodedUrl, signature) = split(checkNotNull(tooLargeProxy.proxyUrlOf(REMOTE_URL)))
 
-        runBlocking {
-            val firstFetch = async { singleFetchProxy.fetch(encodedUrl = encodedUrl, signature = signature) { it } }
-            fetchStarted.await()
-
-            assertEquals(RemoteImageProxyResult.Busy, singleFetchProxy.fetch(encodedUrl = encodedUrl, signature = signature) { it })
-
-            releaseFetch.complete(Unit)
-            assertIs<RemoteImageProxyResult.Found>(firstFetch.await())
-            assertIs<RemoteImageProxyResult.Found>(singleFetchProxy.fetch(encodedUrl = encodedUrl, signature = signature) { it })
-        }
-        assertEquals(listOf(REMOTE_URL, REMOTE_URL), fetchedUrls)
+        assertEquals(RemoteImageProxyResult.Unavailable, tooLargeProxy.fetchBlocking(encodedUrl = encodedUrl, signature = signature))
     }
 
     @Test
-    fun `取得した画像を送り終えるまでは枠を手放さず Busy を返す`() {
-        remoteIcons[REMOTE_URL] = TestProfileIcons.read("400x400.png")
-        val respondStarted = CompletableDeferred<Unit>()
-        val finishRespond = CompletableDeferred<Unit>()
-        val (encodedUrl, signature) = split(checkNotNull(proxy.proxyUrlOf(REMOTE_URL)))
+    fun `大きさを名乗らずに上限を超えたら流している途中で打ち切る`() {
+        val png = TestProfileIcons.read("400x400.png")
+        remoteIcons[REMOTE_URL] = png + ByteArray(NotePostService.MAX_IMAGE_BYTES)
+        val noLengthProxy =
+            RemoteImageProxy(
+                origin = "https://example.com",
+                signingKey = "key-1".encodeToByteArray(),
+                fetcher = { url -> remoteIcons[url]?.let { ByteArrayRemoteImageBody(it, contentLength = null) } },
+            )
+        val (encodedUrl, signature) = split(checkNotNull(noLengthProxy.proxyUrlOf(REMOTE_URL)))
 
-        runBlocking {
-            val firstFetch =
-                async {
-                    proxy.fetch(encodedUrl = encodedUrl, signature = signature) { result ->
-                        respondStarted.complete(Unit)
-                        finishRespond.await()
-                        result
+        assertFailsWith<IOException> { noLengthProxy.fetchBlocking(encodedUrl = encodedUrl, signature = signature) }
+    }
+
+    @Test
+    fun `先頭を読む途中で切れたら Unavailable`() {
+        val brokenProxy =
+            RemoteImageProxy(
+                origin = "https://example.com",
+                signingKey = "key-1".encodeToByteArray(),
+                fetcher = {
+                    object : RemoteImageBody {
+                        override val contentLength: Long? = null
+
+                        override suspend fun read(buffer: ByteArray): Int = throw IOException("切断")
+
+                        override fun close() = Unit
                     }
-                }
-            respondStarted.await()
+                },
+            )
+        val (encodedUrl, signature) = split(checkNotNull(brokenProxy.proxyUrlOf(REMOTE_URL)))
 
-            assertEquals(RemoteImageProxyResult.Busy, proxy.fetch(encodedUrl = encodedUrl, signature = signature) { it })
-
-            finishRespond.complete(Unit)
-            assertIs<RemoteImageProxyResult.Found>(firstFetch.await())
-        }
-        assertEquals(listOf(REMOTE_URL), fetchedUrls)
+        assertEquals(RemoteImageProxyResult.Unavailable, brokenProxy.fetchBlocking(encodedUrl = encodedUrl, signature = signature))
     }
 
     private fun createProxy(signingKey: ByteArray): RemoteImageProxy =
         RemoteImageProxy(
             origin = "https://example.com",
             signingKey = signingKey,
-            fetcher = { url, _ ->
+            fetcher = { url ->
                 fetchedUrls += url
-                remoteIcons[url]
+                remoteIcons[url]?.let(::ByteArrayRemoteImageBody)
             },
-            maxConcurrentFetches = 1,
         )
 
-    private fun fetch(proxyUrl: String): RemoteImageProxyResult {
+    private fun fetch(proxyUrl: String): Any {
         val (encodedUrl, signature) = split(proxyUrl)
         return proxy.fetchBlocking(encodedUrl = encodedUrl, signature = signature)
     }
@@ -192,7 +184,26 @@ class RemoteImageProxyTest {
     private fun RemoteImageProxy.fetchBlocking(
         encodedUrl: String,
         signature: String,
-    ): RemoteImageProxyResult = runBlocking { fetch(encodedUrl = encodedUrl, signature = signature) { it } }
+    ): Any =
+        runBlocking {
+            fetch(encodedUrl = encodedUrl, signature = signature) { result ->
+                if (result is RemoteImageProxyResult.Found) FoundImage(bytes = result.readAll(), contentType = result.contentType) else result
+            }
+        }
+
+    private suspend fun RemoteImageProxyResult.Found.readAll(): ByteArray {
+        val output = ByteArrayOutputStream()
+        copyTo { buffer, length -> output.write(buffer, 0, length) }
+        return output.toByteArray()
+    }
+
+    /**
+     * 本文は応答を返し終えると読めなくなるので、読み切った結果で比べる
+     */
+    private class FoundImage(
+        val bytes: ByteArray,
+        val contentType: String,
+    )
 
     private companion object {
         const val REMOTE_URL = "https://remote.example/media/icon.png"
