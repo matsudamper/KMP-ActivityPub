@@ -354,6 +354,17 @@ class FollowerRepositoryTest {
         }
     }
 
+    @Test
+    fun `記録済みの相手の今の配る先を返し、記録が無ければ null`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val followers = repositories.followerRepository
+            followers.recordFollow(FOLLOWER)
+
+            assertEquals(FOLLOWER.sharedInbox, followers.findCurrentDeliveryInbox(FOLLOWER.actorUri))
+            assertNull(followers.findCurrentDeliveryInbox("https://remote.example/users/nobody"))
+        }
+    }
+
     private fun FollowerRepository.recordFollow(
         follower: RemoteActorRecord,
         username: String = "user1",

@@ -104,6 +104,10 @@ internal class FakeFollowerRepository : FollowerRepository {
         .map { it.sharedInbox ?: it.inbox }
         .toSet()
 
+    override fun findCurrentDeliveryInbox(followerActorUri: String): String? = followerActors
+        .firstOrNull { it.actorUri == followerActorUri }
+        ?.let { it.sharedInbox ?: it.inbox }
+
     override fun countDeliveryInboxesByHost(): List<HostDeliveryInboxCount> = listOf()
 
     data class Rejected(

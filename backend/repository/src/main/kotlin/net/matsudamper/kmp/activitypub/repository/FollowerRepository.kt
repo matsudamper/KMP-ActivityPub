@@ -131,6 +131,11 @@ interface FollowerRepository {
     ): Set<String>
 
     /**
+     * [followerActorUri] からのフォローで今配っている inbox。sharedInbox があればそちら。どのアカウントへのフォローも記録が無ければ null
+     */
+    fun findCurrentDeliveryInbox(followerActorUri: String): String?
+
+    /**
      * フォローで配る先の inbox の数を、相手のアクターのホストごとに返す。数の多い順。
      * [findDeliveryInboxesOfOtherFollowersOnHost] と同じく、こちらのどのアカウントへのフォローかは問わず、Accept を送れる前のものも含める
      */

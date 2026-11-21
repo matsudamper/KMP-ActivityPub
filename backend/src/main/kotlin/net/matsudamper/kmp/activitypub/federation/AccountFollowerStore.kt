@@ -135,8 +135,8 @@ internal class AccountFollowerStore(
      * 鍵付きのアクターはいくらでも作れるので件数で止める。アクター文書を置くホストは相手が用意する必要があるので、ホストごとに数える。
      * 配信を受け持つのはこのサーバーなので、こちらのアカウントは問わずにまとめて数える
      *
-     * 受け付けると相手の配る先は置き換わるので、置き換えた後の数で比べる。記録済みの相手が自分だけの inbox を移しただけなら数は増えない。
-     * ここで断ると、記録済みのフォローまで外れる
+     * 受け付けると相手の配る先は置き換わるので、置き換えた後の数で比べる。配る先が増えない Follow は、上限を下げて既に超えている状態でも断らない。
+     * 記録済みの相手が送り直しただけで、記録済みのフォローまで外れる
      */
     private fun exceedsDeliveryTargetLimit(follower: RemoteActor): Boolean {
         val host = ServerHost.ofUri(follower.actorId) ?: return false
@@ -145,7 +145,11 @@ internal class AccountFollowerStore(
             host = host,
         )
         val deliveryInbox = follower.sharedInbox ?: follower.inbox
-        return (othersDeliveryInboxes + deliveryInbox).size > maxDeliveryTargetsPerHost()
+        val countAfter = (othersDeliveryInboxes + deliveryInbox).size
+        if (countAfter <= maxDeliveryTargetsPerHost()) return false
+
+        val countBefore = (othersDeliveryInboxes + listOfNotNull(followerRepository.findCurrentDeliveryInbox(follower.actorId))).size
+        return countAfter > countBefore
     }
 
     private fun RemoteActorProfile.toRecord(): RemoteActorProfileRecord =

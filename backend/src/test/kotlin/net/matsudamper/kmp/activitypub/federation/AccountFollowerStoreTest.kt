@@ -66,6 +66,16 @@ class AccountFollowerStoreTest {
     }
 
     @Test
+    fun recordedFollowerWhoseTargetDoesNotGrowIsNotRefusedEvenOverTheLimit() {
+        repeat(LIMIT + 2) { index ->
+            repositories.followerRepository.followerActors += actor("https://spam.example/users/$index").toRecord()
+        }
+
+        assertFalse(store.refuses("alice", actor("https://spam.example/users/0")))
+        assertTrue(store.refuses("alice", actor("https://spam.example/users/new")))
+    }
+
+    @Test
     fun theLimitIsReadOnEveryCheck() {
         var limit = LIMIT
         val store = AccountFollowerStore(

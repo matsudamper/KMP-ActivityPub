@@ -353,6 +353,15 @@ internal class SqliteFollowerRepository(
             .toSet()
     }
 
+    override fun findCurrentDeliveryInbox(followerActorUri: String): String? = jooq.withConnection { dsl ->
+        val deliveryInbox = DSL.coalesce(REMOTE_ACTORS.SHARED_INBOX, REMOTE_ACTORS.INBOX)
+        dsl.select(deliveryInbox)
+            .from(REMOTE_ACTORS)
+            .where(REMOTE_ACTORS.ACTOR_URI.eq(followerActorUri))
+            .andExists(DSL.selectOne().from(ACCOUNT_FOLLOWERS).where(ACCOUNT_FOLLOWERS.REMOTE_ACTOR_ID.eq(REMOTE_ACTORS.ID)))
+            .fetchOne(deliveryInbox)
+    }
+
     override fun countDeliveryInboxesByHost(): List<HostDeliveryInboxCount> = jooq.withConnection { dsl ->
         dsl.findFollowerDeliveryInboxes()
             .mapNotNull { inbox -> inbox.actorHost?.let { host -> host to inbox.deliveryInbox } }
