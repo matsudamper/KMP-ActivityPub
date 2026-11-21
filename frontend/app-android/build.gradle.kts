@@ -27,6 +27,13 @@ android {
         targetSdk = libs.versions.androidCompileSdk.get().toInt()
         versionCode = 1
         versionName = "0.1.0"
+        // PR の CI で配る APK を小さくするため、入れる ABI を外から絞れるようにする
+        val abiFiltersProperty = providers.gradleProperty("apkAbiFilters").orNull
+        if (abiFiltersProperty != null) {
+            ndk {
+                abiFilters += abiFiltersProperty.split(",")
+            }
+        }
     }
 
     signingConfigs {
