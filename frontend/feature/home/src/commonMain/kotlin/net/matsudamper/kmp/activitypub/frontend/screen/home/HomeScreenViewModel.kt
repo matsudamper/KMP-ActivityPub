@@ -1634,9 +1634,13 @@ internal class HomeScreenViewModel(
                             quote = createPostItemQuote(
                                 hasQuoteTarget = post.hasQuoteTarget,
                                 load = viewModelState.quotes[post.postId],
+                                sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
+                                blurToggledImageUrls = viewModelState.imageBlur.toggledImageUrls,
                                 onOpenPostDetail = ::navigateToPostDetail,
                                 onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                                 onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
+                                onOpenImage = { urls, index -> viewModelScope.launch { events.send { it.navigateToImage(urls, index) } } },
+                                onToggleImageBlur = { imageUrls, toggled -> toggleImageBlur(imageUrls, toggled) },
                             ),
                             sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
                             translation = viewModelState.translation,
@@ -1817,9 +1821,13 @@ internal class HomeScreenViewModel(
         createPostItemQuote(
             hasQuoteTarget = post.hasQuoteTarget,
             load = viewModelState.quotes[post.id],
+            sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
+            blurToggledImageUrls = viewModelState.imageBlur.toggledImageUrls,
             onOpenPostDetail = ::navigateToPostDetail,
             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
             onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
+            onOpenImage = { urls, index -> viewModelScope.launch { events.send { it.navigateToImage(urls, index) } } },
+            onToggleImageBlur = { imageUrls, toggled -> toggleImageBlur(imageUrls, toggled) },
         )
 
     private fun createTimelineColumns(viewModelState: ViewModelState, feeds: Map<TimelineSource, TimelineFeeds.Feed>): List<HomeScreenUiState.TimelineColumn> {

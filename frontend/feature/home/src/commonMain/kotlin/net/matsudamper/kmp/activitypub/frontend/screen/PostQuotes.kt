@@ -38,12 +38,25 @@ internal suspend fun UserApi.loadQuote(postId: String): QuoteLoad =
 internal fun createPostItemQuote(
     hasQuoteTarget: Boolean,
     load: QuoteLoad?,
+    sensitiveImagesBlurred: Boolean,
+    blurToggledImageUrls: Set<String>,
     onOpenPostDetail: (postId: String) -> Unit,
     onOpenUrl: (url: String) -> Unit,
     onOpenProfile: (acct: String) -> Unit,
+    onOpenImage: (urls: List<String>, index: Int) -> Unit,
+    onToggleImageBlur: (imageUrls: List<String>, toggled: Boolean) -> Unit,
 ): PostItemUiState.Quote? {
     if (!hasQuoteTarget) return null
-    return createQuote(load = load, onOpenPostDetail = onOpenPostDetail, onOpenUrl = onOpenUrl, onOpenProfile = onOpenProfile)
+    return createQuote(
+        load = load,
+        sensitiveImagesBlurred = sensitiveImagesBlurred,
+        blurToggledImageUrls = blurToggledImageUrls,
+        onOpenPostDetail = onOpenPostDetail,
+        onOpenUrl = onOpenUrl,
+        onOpenProfile = onOpenProfile,
+        onOpenImage = onOpenImage,
+        onToggleImageBlur = onToggleImageBlur,
+    )
 }
 
 /**
@@ -51,9 +64,13 @@ internal fun createPostItemQuote(
  */
 internal fun createQuote(
     load: QuoteLoad?,
+    sensitiveImagesBlurred: Boolean,
+    blurToggledImageUrls: Set<String>,
     onOpenPostDetail: ((postId: String) -> Unit)?,
     onOpenUrl: (url: String) -> Unit,
     onOpenProfile: (acct: String) -> Unit,
+    onOpenImage: (urls: List<String>, index: Int) -> Unit,
+    onToggleImageBlur: (imageUrls: List<String>, toggled: Boolean) -> Unit,
 ): PostItemUiState.Quote {
     return when (load) {
         null, QuoteLoad.Loading -> PostItemUiState.Quote.Loading
@@ -62,6 +79,7 @@ internal fun createQuote(
 
         is QuoteLoad.Loaded -> {
             val quoted = load.post
+            val imageUrls = quoted.body.images.map { it.url }
             PostItemUiState.Quote.Loaded(
                 iconUrl = quoted.iconUrl,
                 displayName = createTextWithEmojis(text = quoted.displayName, emojis = quoted.displayNameEmojis),
@@ -73,6 +91,16 @@ internal fun createQuote(
                     onOpenUrl = onOpenUrl,
                     onOpenProfile = onOpenProfile,
                 ),
+                images = quoted.body.images.mapIndexed { index, image ->
+                    createPostImage(
+                        image = image,
+                        sensitive = quoted.body.sensitive,
+                        sensitiveImagesBlurred = sensitiveImagesBlurred,
+                        blurToggled = image.url in blurToggledImageUrls,
+                        onOpen = { onOpenImage(imageUrls, index) },
+                        onToggleBlur = { onToggleImageBlur(imageUrls, image.url !in blurToggledImageUrls) },
+                    )
+                },
                 listener = onOpenPostDetail?.let { navigate ->
                     object : PostItemUiState.QuoteListener {
                         override fun onClick() {

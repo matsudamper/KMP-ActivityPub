@@ -181,6 +181,7 @@ data class PostItemUiState(
             val displayName: TextWithEmojis,
             val acct: String,
             val body: TextWithEmojis,
+            val images: List<Image>,
             val listener: QuoteListener?,
         ) : Quote
     }
