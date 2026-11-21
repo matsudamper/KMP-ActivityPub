@@ -53,12 +53,12 @@ class ActorBlockRepositoryTest {
             assertFalse(blocks.recordBlockActivity(alice, ACTOR.actorUri, "block-2", "https://remote.example/inbox", "{\"id\":\"block-2\"}", Instant.EPOCH))
             assertEquals("block-1", blocks.findBlockActivityId(alice, ACTOR.actorUri))
 
-            val block = queue.claim(Instant.EPOCH, 10).single()
+            val block = queue.claim(Instant.EPOCH, 10, setOf()).single()
             assertEquals("{\"id\":\"block-1\"}", block.body)
             queue.markDelivered(block.id, Instant.EPOCH)
 
             assertTrue(blocks.remove(alice, ACTOR.actorUri, Instant.EPOCH) { "undo:$it" })
-            val undo = queue.claim(Instant.EPOCH, 10).single()
+            val undo = queue.claim(Instant.EPOCH, 10, setOf()).single()
             assertEquals("https://remote.example/inbox", undo.inbox)
             assertEquals("undo:block-1", undo.body)
             assertEquals(listOf(), blocks.list(alice))
@@ -74,7 +74,7 @@ class ActorBlockRepositoryTest {
 
             assertFalse(blocks.remove(alice, ACTOR.actorUri, Instant.EPOCH) { "undo:$it" })
 
-            assertEquals(listOf(), repositories.deliveryQueueRepository.claim(Instant.EPOCH, 10))
+            assertEquals(listOf(), repositories.deliveryQueueRepository.claim(Instant.EPOCH, 10, setOf()))
         }
     }
 
@@ -85,11 +85,11 @@ class ActorBlockRepositoryTest {
             val queue = repositories.deliveryQueueRepository
             blocks.add(alice, ACTOR, Instant.EPOCH)
             blocks.recordBlockActivity(alice, ACTOR.actorUri, "block-1", "https://remote.example/inbox", "{\"id\":\"block-1\"}", Instant.EPOCH)
-            queue.scheduleRetry(queue.claim(Instant.EPOCH, 10).single().id, Instant.EPOCH.plusSeconds(60), "失敗")
+            queue.scheduleRetry(queue.claim(Instant.EPOCH, 10, setOf()).single().id, Instant.EPOCH.plusSeconds(60), "失敗")
 
             assertTrue(blocks.remove(alice, ACTOR.actorUri, Instant.EPOCH) { "undo:$it" })
 
-            assertEquals(listOf("undo:block-1"), queue.claim(Instant.EPOCH.plusSeconds(120), 10).map { it.body })
+            assertEquals(listOf("undo:block-1"), queue.claim(Instant.EPOCH.plusSeconds(120), 10, setOf()).map { it.body })
         }
     }
 
@@ -100,12 +100,12 @@ class ActorBlockRepositoryTest {
             val queue = repositories.deliveryQueueRepository
             blocks.add(alice, ACTOR, Instant.EPOCH)
             blocks.recordBlockActivity(alice, ACTOR.actorUri, "block-1", "https://remote.example/inbox", "{\"id\":\"block-1\"}", Instant.EPOCH)
-            val delivering = queue.claim(Instant.EPOCH, 10).single()
+            val delivering = queue.claim(Instant.EPOCH, 10, setOf()).single()
 
             assertTrue(blocks.remove(alice, ACTOR.actorUri, Instant.EPOCH) { "undo:$it" })
             queue.scheduleRetry(delivering.id, Instant.EPOCH.plusSeconds(60), "失敗")
 
-            assertEquals(listOf("undo:block-1"), queue.claim(Instant.EPOCH.plusSeconds(120), 10).map { it.body })
+            assertEquals(listOf("undo:block-1"), queue.claim(Instant.EPOCH.plusSeconds(120), 10, setOf()).map { it.body })
         }
     }
 

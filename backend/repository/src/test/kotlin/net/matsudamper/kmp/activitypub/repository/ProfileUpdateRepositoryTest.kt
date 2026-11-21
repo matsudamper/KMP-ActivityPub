@@ -45,7 +45,7 @@ class ProfileUpdateRepositoryTest {
             assertTrue(queue.updateProfile(profileUpdate(displayName = "ユーザー1", body = "update-1")))
 
             assertEquals("ユーザー1", repositories.accountRepository.findByUsername("user1")?.displayName)
-            val claimed = queue.claim(now = NOW, limit = 10)
+            val claimed = queue.claim(now = NOW, limit = 10, excludedInboxHosts = setOf())
             assertEquals(INBOXES.toSet(), claimed.map { it.inbox }.toSet())
             assertEquals(listOf("update-1", "update-1"), claimed.map { it.body })
         }
@@ -59,7 +59,7 @@ class ProfileUpdateRepositoryTest {
             queue.updateProfile(profileUpdate(displayName = "新しい", body = "update-new"))
 
             assertEquals("新しい", repositories.accountRepository.findByUsername("user1")?.displayName)
-            assertEquals(listOf("update-new", "update-new"), queue.claim(now = NOW, limit = 10).map { it.body })
+            assertEquals(listOf("update-new", "update-new"), queue.claim(now = NOW, limit = 10, excludedInboxHosts = setOf()).map { it.body })
         }
     }
 
@@ -163,7 +163,7 @@ class ProfileUpdateRepositoryTest {
             val queue = repositories.deliveryQueueRepository
             assertFalse(queue.updateProfile(profileUpdate(displayName = "誰か", body = "update").copy(username = "nobody")))
 
-            assertEquals(listOf(), queue.claim(now = NOW, limit = 10))
+            assertEquals(listOf(), queue.claim(now = NOW, limit = 10, excludedInboxHosts = setOf()))
         }
     }
 

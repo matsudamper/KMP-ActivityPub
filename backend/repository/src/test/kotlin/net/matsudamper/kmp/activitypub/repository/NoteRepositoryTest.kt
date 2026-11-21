@@ -50,10 +50,10 @@ class NoteRepositoryTest {
             assertEquals("user1", note?.username)
             assertEquals(1, repositories.noteRepository.count("user1"))
 
-            val claimed = queue.claim(now = NOW, limit = 10)
+            val claimed = queue.claim(now = NOW, limit = 10, excludedInboxHosts = setOf())
             assertEquals(setOf(INBOX_A, INBOX_B), claimed.map { it.inbox }.toSet())
             assertEquals(listOf(1, 1), claimed.map { it.attempts })
-            assertEquals(listOf(), queue.claim(now = NOW, limit = 10))
+            assertEquals(listOf(), queue.claim(now = NOW, limit = 10, excludedInboxHosts = setOf()))
         }
     }
 
@@ -165,13 +165,13 @@ class NoteRepositoryTest {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             val queue = repositories.deliveryQueueRepository
             queue.enqueueNote(notePost(publicId = "note-1", inboxes = listOf(INBOX_A)))
-            val claimed = queue.claim(now = NOW, limit = 10).single()
+            val claimed = queue.claim(now = NOW, limit = 10, excludedInboxHosts = setOf()).single()
 
             val retryAt = NOW.plusSeconds(60)
             queue.scheduleRetry(claimed.id, nextAttemptAt = retryAt, error = "503")
 
-            assertEquals(listOf(), queue.claim(now = NOW, limit = 10))
-            assertEquals(2, queue.claim(now = retryAt, limit = 10).single().attempts)
+            assertEquals(listOf(), queue.claim(now = NOW, limit = 10, excludedInboxHosts = setOf()))
+            assertEquals(2, queue.claim(now = retryAt, limit = 10, excludedInboxHosts = setOf()).single().attempts)
         }
     }
 
@@ -180,12 +180,12 @@ class NoteRepositoryTest {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             val queue = repositories.deliveryQueueRepository
             queue.enqueueNote(notePost(publicId = "note-1", inboxes = listOf(INBOX_A, INBOX_B)))
-            val claimed = queue.claim(now = NOW, limit = 10)
+            val claimed = queue.claim(now = NOW, limit = 10, excludedInboxHosts = setOf())
             queue.markDelivered(claimed[0].id, deliveredAt = NOW)
             queue.giveUp(claimed[1].id, error = "410", failedAt = NOW)
 
             assertEquals(0, queue.recoverDelivering(now = NOW))
-            assertEquals(listOf(), queue.claim(now = NOW.plusSeconds(3600), limit = 10))
+            assertEquals(listOf(), queue.claim(now = NOW.plusSeconds(3600), limit = 10, excludedInboxHosts = setOf()))
         }
     }
 
@@ -194,10 +194,10 @@ class NoteRepositoryTest {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             val queue = repositories.deliveryQueueRepository
             queue.enqueueNote(notePost(publicId = "note-1", inboxes = listOf(INBOX_A)))
-            queue.claim(now = NOW, limit = 10)
+            queue.claim(now = NOW, limit = 10, excludedInboxHosts = setOf())
 
             assertEquals(1, queue.recoverDelivering(now = NOW))
-            assertEquals(INBOX_A, queue.claim(now = NOW, limit = 10).single().inbox)
+            assertEquals(INBOX_A, queue.claim(now = NOW, limit = 10, excludedInboxHosts = setOf()).single().inbox)
         }
     }
 
@@ -209,7 +209,7 @@ class NoteRepositoryTest {
 
             repositories.noteRepository.delete(PublicNoteId("note-1"))
 
-            assertEquals(listOf(), queue.claim(now = NOW, limit = 10))
+            assertEquals(listOf(), queue.claim(now = NOW, limit = 10, excludedInboxHosts = setOf()))
         }
     }
 
@@ -226,7 +226,7 @@ class NoteRepositoryTest {
 
             assertNull(repositories.noteRepository.find(PublicNoteId("note-1")))
             assertNull(repositories.noteRepository.findImage(NoteImagePublicId("image-a")))
-            val claimed = queue.claim(now = NOW, limit = 10)
+            val claimed = queue.claim(now = NOW, limit = 10, excludedInboxHosts = setOf())
             assertEquals(setOf(INBOX_A, INBOX_B), claimed.map { it.inbox }.toSet())
             assertEquals(listOf("delete-note-1", "delete-note-1"), claimed.map { it.body })
         }
@@ -251,7 +251,7 @@ class NoteRepositoryTest {
             assertEquals(false, queue.enqueueNoteDeletion(noteDeletion(publicId = "missing", inboxes = listOf(INBOX_A))))
 
             assertNotNull(repositories.noteRepository.find(PublicNoteId("note-1")))
-            assertEquals(listOf(), queue.claim(now = NOW, limit = 10))
+            assertEquals(listOf(), queue.claim(now = NOW, limit = 10, excludedInboxHosts = setOf()))
         }
     }
 
@@ -269,7 +269,7 @@ class NoteRepositoryTest {
             assertEquals("edited", note.sourceText)
             assertEquals(NOW.plusSeconds(60), note.updatedAt)
             assertEquals(NOW, note.publishedAt)
-            val claimed = queue.claim(now = NOW.plusSeconds(60), limit = 10)
+            val claimed = queue.claim(now = NOW.plusSeconds(60), limit = 10, excludedInboxHosts = setOf())
             assertEquals(listOf(INBOX_A to "update-2"), claimed.map { it.inbox to it.body })
         }
     }
@@ -279,16 +279,16 @@ class NoteRepositoryTest {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             val queue = repositories.deliveryQueueRepository
             queue.enqueueNote(notePost(publicId = "note-1", inboxes = listOf(INBOX_A)))
-            val create = queue.claim(now = NOW, limit = 10).single()
+            val create = queue.claim(now = NOW, limit = 10, excludedInboxHosts = setOf()).single()
             queue.scheduleRetry(id = create.id, nextAttemptAt = NOW.plusSeconds(120), error = "失敗")
 
             queue.enqueueNoteUpdate(noteUpdate(publicId = "note-1", body = "update", inboxes = listOf(INBOX_A, INBOX_B)))
 
-            assertEquals(listOf(INBOX_B to "update"), queue.claim(now = NOW.plusSeconds(60), limit = 10).map { it.inbox to it.body })
-            val retriedCreate = queue.claim(now = NOW.plusSeconds(120), limit = 10).single()
+            assertEquals(listOf(INBOX_B to "update"), queue.claim(now = NOW.plusSeconds(60), limit = 10, excludedInboxHosts = setOf()).map { it.inbox to it.body })
+            val retriedCreate = queue.claim(now = NOW.plusSeconds(120), limit = 10, excludedInboxHosts = setOf()).single()
             assertEquals("create-note-1", retriedCreate.body)
             queue.markDelivered(id = retriedCreate.id, deliveredAt = NOW.plusSeconds(120))
-            assertEquals(listOf(INBOX_A to "update"), queue.claim(now = NOW.plusSeconds(120), limit = 10).map { it.inbox to it.body })
+            assertEquals(listOf(INBOX_A to "update"), queue.claim(now = NOW.plusSeconds(120), limit = 10, excludedInboxHosts = setOf()).map { it.inbox to it.body })
         }
     }
 
@@ -311,7 +311,7 @@ class NoteRepositoryTest {
             assertEquals(false, queue.enqueueNoteUpdate(noteUpdate(publicId = "missing", body = "update", inboxes = listOf(INBOX_A))))
 
             assertEquals("<p>hello</p>", repositories.noteRepository.find(PublicNoteId("note-1"))?.contentHtml)
-            assertEquals(listOf(), queue.claim(now = NOW.plusSeconds(60), limit = 10))
+            assertEquals(listOf(), queue.claim(now = NOW.plusSeconds(60), limit = 10, excludedInboxHosts = setOf()))
         }
     }
 
@@ -347,7 +347,7 @@ class NoteRepositoryTest {
 
             assertEquals(EnqueueNoteResult.AlreadyPosted(PublicNoteId("note-1")), resent)
             assertNull(repositories.noteRepository.find(PublicNoteId("note-2")))
-            assertEquals(1, queue.claim(now = NOW, limit = 10).size)
+            assertEquals(1, queue.claim(now = NOW, limit = 10, excludedInboxHosts = setOf()).size)
         }
     }
 

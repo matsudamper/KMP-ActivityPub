@@ -84,6 +84,7 @@ internal class FakeDeliveryQueueRepository(
     override fun claim(
         now: Instant,
         limit: Int,
+        excludedInboxHosts: Set<String>,
     ): List<ClaimedDelivery> = listOf()
 
     override fun markDelivered(

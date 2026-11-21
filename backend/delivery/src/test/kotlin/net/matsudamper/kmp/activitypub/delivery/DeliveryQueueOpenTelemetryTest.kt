@@ -165,7 +165,7 @@ class DeliveryQueueOpenTelemetryTest {
         val recoveredAfterFailure = CompletableDeferred<Unit>()
         private var recoveries = 0
 
-        override fun claim(now: Instant, limit: Int): List<ClaimedDelivery> {
+        override fun claim(now: Instant, limit: Int, excludedInboxHosts: Set<String>): List<ClaimedDelivery> {
             tracer.spanBuilder("SQL claim").startSpan().end()
             if (failNextClaim) {
                 failNextClaim = false

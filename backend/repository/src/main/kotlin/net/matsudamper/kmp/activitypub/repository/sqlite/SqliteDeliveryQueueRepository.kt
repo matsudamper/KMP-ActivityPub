@@ -4,6 +4,7 @@ import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.ClaimedDelivery
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.EnqueueNoteResult
+import net.matsudamper.kmp.activitypub.repository.InboxHost
 import net.matsudamper.kmp.activitypub.repository.NoteDeletion
 import net.matsudamper.kmp.activitypub.repository.NotePost
 import net.matsudamper.kmp.activitypub.repository.NoteUpdate
@@ -327,7 +328,14 @@ internal class SqliteDeliveryQueueRepository(
     override fun claim(
         now: Instant,
         limit: Int,
+        excludedInboxHosts: Set<String>,
     ): List<ClaimedDelivery> = jooq.transaction { dsl ->
+        val dueCondition = DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_PENDING)
+            .and(DELIVERY_QUEUE.NEXT_ATTEMPT_AT.le(StoredInstant.format(now)))
+            .andNot(likeWaitingForEarlierUndo(dsl))
+            .andNot(noteUpdateWaitingForCreate(dsl))
+        val claimedIds = claimableIds(dsl, dueCondition, limit, excludedInboxHosts)
+        if (claimedIds.isEmpty()) return@transaction listOf()
         val due =
             dsl.select(
                 DELIVERY_QUEUE.ID,
@@ -340,12 +348,8 @@ internal class SqliteDeliveryQueueRepository(
             )
                 .from(DELIVERY_QUEUE)
                 .join(ACCOUNTS).on(ACCOUNTS.ID.eq(DELIVERY_QUEUE.ACCOUNT_ID))
-                .where(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_PENDING))
-                .and(DELIVERY_QUEUE.NEXT_ATTEMPT_AT.le(StoredInstant.format(now)))
-                .andNot(likeWaitingForEarlierUndo(dsl))
-                .andNot(noteUpdateWaitingForCreate(dsl))
+                .where(DELIVERY_QUEUE.ID.`in`(claimedIds))
                 .orderBy(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, DELIVERY_QUEUE.ID)
-                .limit(limit)
                 .fetch { record ->
                     ClaimedDelivery(
                         id = checkNotNull(record.get(DELIVERY_QUEUE.ID)),
@@ -494,6 +498,45 @@ internal class SqliteDeliveryQueueRepository(
             .set(DELIVERY_QUEUE.ENQUEUED_AT, StoredInstant.format(now)).execute()
     }
 
+    /**
+     * 取り出せる行の id を古い順に [limit] 件まで選ぶ。
+     *
+     * 除くホストの判定は [InboxHost] に揃える。SQL の文字列比較で真似ると、パスの無い URL などで
+     * 取り出し側の判定とずれて、送り終えていないホスト宛てを取り出してしまう。
+     * 除くホスト宛てが先頭に何件並んでいても後ろの行に届くよう、最後まで続けて見る
+     */
+    private fun claimableIds(
+        dsl: DSLContext,
+        dueCondition: Condition,
+        limit: Int,
+        excludedInboxHosts: Set<String>,
+    ): List<Long> = buildList {
+        var cursor: ClaimScanCursor? = null
+        while (size < limit) {
+            val page = dsl.select(DELIVERY_QUEUE.ID, DELIVERY_QUEUE.INBOX, DELIVERY_QUEUE.NEXT_ATTEMPT_AT)
+                .from(DELIVERY_QUEUE)
+                .where(dueCondition)
+                .and(cursor?.let { afterCursor(it) } ?: DSL.noCondition())
+                .orderBy(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, DELIVERY_QUEUE.ID)
+                .limit(CLAIM_SCAN_PAGE)
+                .fetch()
+            page.asSequence()
+                .filter { record -> InboxHost.of(checkNotNull(record.get(DELIVERY_QUEUE.INBOX))) !in excludedInboxHosts }
+                .take(limit - size)
+                .forEach { record -> add(checkNotNull(record.get(DELIVERY_QUEUE.ID))) }
+            if (page.size < CLAIM_SCAN_PAGE) break
+            val last = page.last()
+            cursor = ClaimScanCursor(
+                nextAttemptAt = checkNotNull(last.get(DELIVERY_QUEUE.NEXT_ATTEMPT_AT)),
+                id = checkNotNull(last.get(DELIVERY_QUEUE.ID)),
+            )
+        }
+    }
+
+    private fun afterCursor(cursor: ClaimScanCursor): Condition =
+        DELIVERY_QUEUE.NEXT_ATTEMPT_AT.gt(cursor.nextAttemptAt)
+            .or(DELIVERY_QUEUE.NEXT_ATTEMPT_AT.eq(cursor.nextAttemptAt).and(DELIVERY_QUEUE.ID.gt(cursor.id)))
+
     private fun quotingNoteIdOf(acceptBody: Field<*>): Field<String> =
         DSL.field("json_extract({0}, '$.object.instrument')", String::class.java, acceptBody)
 
@@ -515,4 +558,13 @@ internal class SqliteDeliveryQueueRepository(
         val accountId: Long,
         val remoteActorId: Long?,
     )
+
+    private data class ClaimScanCursor(
+        val nextAttemptAt: String,
+        val id: Long,
+    )
+
+    private companion object {
+        const val CLAIM_SCAN_PAGE = 200
+    }
 }

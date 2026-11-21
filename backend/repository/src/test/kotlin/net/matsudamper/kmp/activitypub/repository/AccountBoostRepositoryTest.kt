@@ -28,7 +28,7 @@ class AccountBoostRepositoryTest {
         assertEquals(false, repositories.timelineRepository.hydrate(bob, listOf(member)).single().boostedByMe)
         assertEquals(
             setOf(FOLLOWER_INBOX to announceBody("announce-1"), "$ACTOR/inbox" to announceBody("announce-1")),
-            repositories.deliveryQueueRepository.claim(NOW, 10).map { it.inbox to it.body }.toSet(),
+            repositories.deliveryQueueRepository.claim(NOW, 10, setOf()).map { it.inbox to it.body }.toSet(),
         )
         assertTrue(repositories.timelineRepository.recipients(position.member, NOW.minusSeconds(60), null, 10).isEmpty())
     }
@@ -85,7 +85,7 @@ class AccountBoostRepositoryTest {
         val boosts = repositories.accountBoostRepository
         val queue = repositories.deliveryQueueRepository
         boosts.boostAndEnqueue(boost(alice, local, "announce-1"))
-        queue.claim(NOW, 10).forEach { queue.markDelivered(it.id, NOW) }
+        queue.claim(NOW, 10, setOf()).forEach { queue.markDelivered(it.id, NOW) }
 
         assertTrue(
             queue.enqueueNoteDeletion(
@@ -93,7 +93,7 @@ class AccountBoostRepositoryTest {
             ),
         )
 
-        assertEquals(INBOXES.toSet(), queue.claim(NOW, 10).onEach { assertEquals(undoBody("announce-1"), it.body) }.map { it.inbox }.toSet())
+        assertEquals(INBOXES.toSet(), queue.claim(NOW, 10, setOf()).onEach { assertEquals(undoBody("announce-1"), it.body) }.map { it.inbox }.toSet())
         assertTrue(boosts.boostedLocalNotes(alice, setOf(PublicNoteId("bob-note"))).isEmpty())
     }
 
@@ -105,7 +105,7 @@ class AccountBoostRepositoryTest {
 
         assertTrue(boosts.unboostAndEnqueueUndo(alice, member, NOW))
 
-        assertTrue(repositories.deliveryQueueRepository.claim(NOW, 10).isEmpty())
+        assertTrue(repositories.deliveryQueueRepository.claim(NOW, 10, setOf()).isEmpty())
         assertEquals(false, repositories.timelineRepository.hydrate(alice, listOf(member)).single().boostedByMe)
         assertFalse(boosts.unboostAndEnqueueUndo(alice, member, NOW))
     }
@@ -127,12 +127,12 @@ class AccountBoostRepositoryTest {
         val boosts = repositories.accountBoostRepository
         val queue = repositories.deliveryQueueRepository
         boosts.boostAndEnqueue(boost(alice, member, "announce-1"))
-        val sent = queue.claim(NOW, 1).single()
+        val sent = queue.claim(NOW, 1, setOf()).single()
         queue.markDelivered(sent.id, NOW)
 
         assertTrue(boosts.unboostAndEnqueueUndo(alice, member, NOW))
 
-        assertEquals(listOf(sent.inbox to undoBody("announce-1")), queue.claim(NOW, 10).map { it.inbox to it.body })
+        assertEquals(listOf(sent.inbox to undoBody("announce-1")), queue.claim(NOW, 10, setOf()).map { it.inbox to it.body })
     }
 
     @Test
@@ -141,12 +141,12 @@ class AccountBoostRepositoryTest {
         val boosts = repositories.accountBoostRepository
         val queue = repositories.deliveryQueueRepository
         boosts.boostAndEnqueue(boost(alice, member, "announce-1"))
-        queue.claim(NOW, 10).forEach { queue.markDelivered(it.id, NOW) }
+        queue.claim(NOW, 10, setOf()).forEach { queue.markDelivered(it.id, NOW) }
         repositories.followingRepository.remove(alice, ACTOR)
 
         assertTrue(boosts.unboostAndEnqueueUndo(alice, member, NOW))
 
-        assertEquals(INBOXES.toSet(), queue.claim(NOW, 10).map { it.inbox }.toSet())
+        assertEquals(INBOXES.toSet(), queue.claim(NOW, 10, setOf()).map { it.inbox }.toSet())
     }
 
     @Test
@@ -158,11 +158,11 @@ class AccountBoostRepositoryTest {
 
         assertNotNull(boosts.target(alice, reactionMember))
         assertNotNull(boosts.boostAndEnqueue(boost(alice, reactionMember, "announce-1")))
-        queue.claim(NOW, 10).forEach { queue.markDelivered(it.id, NOW) }
+        queue.claim(NOW, 10, setOf()).forEach { queue.markDelivered(it.id, NOW) }
         assertNotNull(repositories.boostRepository.remove(BOOSTER, "$BOOSTER/announces/1", NOW))
 
         assertTrue(boosts.unboostAndEnqueueUndo(alice, reactionMember, NOW))
-        assertEquals(INBOXES.toSet(), queue.claim(NOW, 10).map { it.inbox }.toSet())
+        assertEquals(INBOXES.toSet(), queue.claim(NOW, 10, setOf()).map { it.inbox }.toSet())
     }
 
     @Test
@@ -171,14 +171,14 @@ class AccountBoostRepositoryTest {
         val boosts = repositories.accountBoostRepository
         val queue = repositories.deliveryQueueRepository
         boosts.boostAndEnqueue(boost(alice, member, "announce-1"))
-        queue.claim(NOW, 10).forEach { queue.markDelivered(it.id, NOW) }
+        queue.claim(NOW, 10, setOf()).forEach { queue.markDelivered(it.id, NOW) }
 
         assertEquals(RemoteNoteDeletion(undoneBoostCount = 0, deletedTimelineMembers = listOf()), boosts.deleteRemoteNoteAndUndoBoosts("https://other.example/actor", "$ACTOR/notes/public", NOW))
-        assertTrue(queue.claim(NOW, 10).isEmpty())
+        assertTrue(queue.claim(NOW, 10, setOf()).isEmpty())
         assertEquals(true, repositories.timelineRepository.hydrate(alice, listOf(member)).single().boostedByMe)
 
         assertEquals(RemoteNoteDeletion(undoneBoostCount = 1, deletedTimelineMembers = listOf(member)), boosts.deleteRemoteNoteAndUndoBoosts(ACTOR, "$ACTOR/notes/public", NOW))
-        assertEquals(INBOXES.toSet(), queue.claim(NOW, 10).onEach { assertEquals(undoBody("announce-1"), it.body) }.map { it.inbox }.toSet())
+        assertEquals(INBOXES.toSet(), queue.claim(NOW, 10, setOf()).onEach { assertEquals(undoBody("announce-1"), it.body) }.map { it.inbox }.toSet())
         assertTrue(repositories.timelineRepository.hydrate(alice, listOf(member)).single().deleted)
         // 削除済みと出すために残した行には、新しくブーストもいいねも付けられない
         assertNull(boosts.target(alice, member))
@@ -191,14 +191,14 @@ class AccountBoostRepositoryTest {
         val boosts = repositories.accountBoostRepository
         val queue = repositories.deliveryQueueRepository
         boosts.boostAndEnqueue(boost(alice, member, "announce-1"))
-        val delivering = queue.claim(NOW, 10)
+        val delivering = queue.claim(NOW, 10, setOf())
 
         assertTrue(boosts.unboostAndEnqueueUndo(alice, member, NOW))
         delivering.forEach { queue.scheduleRetry(it.id, NOW, "接続失敗") }
 
         assertEquals(
             setOf(FOLLOWER_INBOX, "$ACTOR/inbox"),
-            queue.claim(NOW, 10).onEach { assertEquals(undoBody("announce-1"), it.body) }.map { it.inbox }.toSet(),
+            queue.claim(NOW, 10, setOf()).onEach { assertEquals(undoBody("announce-1"), it.body) }.map { it.inbox }.toSet(),
         )
     }
 
@@ -243,11 +243,11 @@ class AccountBoostRepositoryTest {
         val member = receiveNote(repositories, "public", alice)
         val queue = repositories.deliveryQueueRepository
         repositories.accountBoostRepository.boostAndEnqueue(boost(alice, member, "announce-1"))
-        queue.claim(NOW, 10).forEach { queue.markDelivered(it.id, NOW) }
+        queue.claim(NOW, 10, setOf()).forEach { queue.markDelivered(it.id, NOW) }
 
         repositories.followerRepository.removeRemoteActor(ACTOR, NOW)
 
-        assertEquals(INBOXES.toSet(), queue.claim(NOW, 10).onEach { assertEquals(undoBody("announce-1"), it.body) }.map { it.inbox }.toSet())
+        assertEquals(INBOXES.toSet(), queue.claim(NOW, 10, setOf()).onEach { assertEquals(undoBody("announce-1"), it.body) }.map { it.inbox }.toSet())
         assertFalse(repositories.timelineRepository.hasRemoteNote("$ACTOR/notes/public"))
     }
 
