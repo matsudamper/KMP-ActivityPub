@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.logic
 
+import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.time.Instant
 import kotlin.test.Test
@@ -139,6 +140,27 @@ class RemoteImageProxyTest {
         assertFailsWith<IOException> { noLengthProxy.fetchBlocking(encodedUrl = encodedUrl, signature = signature) }
     }
 
+    @Test
+    fun `先頭を読む途中で切れたら Unavailable`() {
+        val brokenProxy =
+            RemoteImageProxy(
+                origin = "https://example.com",
+                signingKey = "key-1".encodeToByteArray(),
+                fetcher = {
+                    object : RemoteImageBody {
+                        override val contentLength: Long? = null
+
+                        override suspend fun read(buffer: ByteArray): Int = throw IOException("切断")
+
+                        override fun close() = Unit
+                    }
+                },
+            )
+        val (encodedUrl, signature) = split(checkNotNull(brokenProxy.proxyUrlOf(REMOTE_URL)))
+
+        assertEquals(RemoteImageProxyResult.Unavailable, brokenProxy.fetchBlocking(encodedUrl = encodedUrl, signature = signature))
+    }
+
     private fun createProxy(signingKey: ByteArray): RemoteImageProxy =
         RemoteImageProxy(
             origin = "https://example.com",
@@ -170,9 +192,9 @@ class RemoteImageProxyTest {
         }
 
     private suspend fun RemoteImageProxyResult.Found.readAll(): ByteArray {
-        var bytes = ByteArray(0)
-        copyTo { buffer, length -> bytes += buffer.copyOf(length) }
-        return bytes
+        val output = ByteArrayOutputStream()
+        copyTo { buffer, length -> output.write(buffer, 0, length) }
+        return output.toByteArray()
     }
 
     /**
