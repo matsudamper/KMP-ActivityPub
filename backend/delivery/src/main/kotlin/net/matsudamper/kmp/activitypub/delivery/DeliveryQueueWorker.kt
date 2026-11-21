@@ -5,8 +5,16 @@ import java.time.Instant
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withTimeoutOrNull
 import io.opentelemetry.api.OpenTelemetry
 import io.opentelemetry.api.trace.StatusCode
@@ -25,6 +33,10 @@ import org.slf4j.LoggerFactory
  *
  * 起動時に delivering のまま残った行を戻すので、同じ DB に対してプロセスを 2 つ動かすと、
  * 動いている方が送っている行まで巻き戻して二重に送る
+ *
+ * 同じ inbox のホスト宛ては 1 件ずつ順に送り、ホストをまたいでは [SEND_CONCURRENCY] 件まで同時に送る。
+ * 相手は自分の inbox の応答を遅らせられるので、順に送ると 1 つのホストが配信全体を待たせられる。
+ * ホストごとに順に送るので、遅いホストが待たせるのはそのホスト宛ての行だけになる
  */
 class DeliveryQueueWorker(
     private val queue: DeliveryQueueRepository,
@@ -37,58 +49,86 @@ class DeliveryQueueWorker(
     private val tracer = openTelemetry.getTracer("activitypub-delivery")
     private val logger = LoggerFactory.getLogger(DeliveryQueueWorker::class.java)
     private val wakeUpSignal = Channel<Unit>(Channel.CONFLATED)
+    private val sendPermits = Semaphore(SEND_CONCURRENCY)
+    private val inboxHostLanes = InboxHostLanes()
 
     fun wakeUp() {
         wakeUpSignal.trySend(Unit)
     }
 
     suspend fun run() {
-        recoverDelivering()
-        while (true) {
-            val hasMore =
-                try {
-                    deliverDue()
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    logger.warn("配信キューを処理できなかった", e)
-                    // 失敗を記録できずに抜けると、取り出した行が delivering のまま残る。
-                    // 送っているのはこのループだけなので、ここで戻しても送信中の行を巻き戻さない
-                    recoverDelivering()
-                    false
+        coroutineScope {
+            val sending = SupervisorJob(coroutineContext[Job])
+            val sendingScope = CoroutineScope(coroutineContext + sending)
+            recoverDelivering()
+            while (true) {
+                val hasMore =
+                    try {
+                        val claimed = claim()
+                        claimed.forEach { row -> sendingScope.launch { deliverInLane(row) } }
+                        claimed.size >= BATCH_SIZE
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        logger.warn("配信キューを処理できなかった", e)
+                        // 送っている行を巻き戻すと二重に送るので、送り終わるのを待ってから戻す
+                        sending.children.toList().joinAll()
+                        recoverDelivering()
+                        false
+                    }
+                if (hasMore) {
+                    // 送り手が空くまで次を取り出さない。取り出した行は送り終えるまで delivering のまま持つ
+                    sendPermits.withPermit { }
+                } else {
+                    withTimeoutOrNull(POLL_INTERVAL) { wakeUpSignal.receive() }
                 }
-            if (!hasMore) {
-                withTimeoutOrNull(POLL_INTERVAL) { wakeUpSignal.receive() }
             }
         }
     }
 
     /**
+     * 期限の来たものを取り出して、送り終えるまで待つ
+     *
      * @return 期限の来たものがまだ残っていそうなら true
      */
     suspend fun deliverDue(): Boolean {
         val claimed = claim()
-        claimed.forEach { row ->
-            inOpenTelemetrySuspendSpan(tracer, "DeliveryQueue.deliver", true) { span ->
-                span.setAttribute(DeliverySpan.ID, row.id)
-                span.setAttribute(DeliverySpan.KIND, row.kind)
-                span.setAttribute(DeliverySpan.SENDER, row.username)
-                span.setAttribute(DeliverySpan.INBOX, row.inbox)
-                span.setAttribute(DeliverySpan.ATTEMPTS, row.attempts.toLong())
+        coroutineScope {
+            claimed.forEach { row -> launch { deliverInLane(row) } }
+        }
+        return claimed.size >= BATCH_SIZE
+    }
+
+    private suspend fun deliverInLane(row: ClaimedDelivery) {
+        inboxHostLanes.withLane(InboxHostLanes.hostOf(row.inbox)) {
+            sendPermits.withPermit { deliverInSpan(row) }
+        }
+    }
+
+    private suspend fun deliverInSpan(row: ClaimedDelivery) {
+        inOpenTelemetrySuspendSpan(tracer, "DeliveryQueue.deliver", true) { span ->
+            span.setAttribute(DeliverySpan.ID, row.id)
+            span.setAttribute(DeliverySpan.KIND, row.kind)
+            span.setAttribute(DeliverySpan.SENDER, row.username)
+            span.setAttribute(DeliverySpan.INBOX, row.inbox)
+            span.setAttribute(DeliverySpan.ATTEMPTS, row.attempts.toLong())
+            try {
+                deliverOne(row)
+            } catch (e: CancellationException) {
+                DeliverySpan.outcome("cancelled")
+                throw e
+            } catch (e: Exception) {
+                // delivering のまま残すと、次の起動まで二度と取り出されない
+                logger.warn("配信を処理できなかった: ${row.username} → ${row.inbox}", e)
+                span.recordException(e)
                 try {
-                    deliverOne(row)
-                } catch (e: CancellationException) {
-                    DeliverySpan.outcome("cancelled")
-                    throw e
-                } catch (e: Exception) {
-                    // delivering のまま残すと、次の起動まで二度と取り出されない
-                    logger.warn("配信を処理できなかった: ${row.username} → ${row.inbox}", e)
-                    span.recordException(e)
                     withOpenTelemetryContext { recordFailure(row, reason = e.toString(), retryable = true) }
+                } catch (recordingFailure: Exception) {
+                    if (recordingFailure is CancellationException) throw recordingFailure
+                    logger.warn("配信の失敗を記録できなかったので、次の起動まで送り直さない: ${row.username} → ${row.inbox}", recordingFailure)
                 }
             }
         }
-        return claimed.size >= BATCH_SIZE
     }
 
     private suspend fun claim(): List<ClaimedDelivery> {
@@ -190,6 +230,7 @@ class DeliveryQueueWorker(
 
     private companion object {
         const val BATCH_SIZE = 20
+        const val SEND_CONCURRENCY = 8
         val POLL_INTERVAL: Duration = 30.seconds
     }
 }
