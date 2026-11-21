@@ -10,6 +10,7 @@ import net.matsudamper.kmp.activitypub.imagestorage.s3.StsCredentialProvider
 import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.ActorBlockService
 import net.matsudamper.kmp.activitypub.logic.BlockLists
+import net.matsudamper.kmp.activitypub.logic.DeliveryTargetLimitService
 import net.matsudamper.kmp.activitypub.logic.FailedDeliveryService
 import net.matsudamper.kmp.activitypub.logic.FollowListService
 import net.matsudamper.kmp.activitypub.logic.FollowingGroupService
@@ -75,6 +76,10 @@ class AppDependencies(
     )
     val failedDeliveryService: FailedDeliveryService = FailedDeliveryService(repository = repositories.failedDeliveryRepository)
     val unknownObjectTypeService: UnknownObjectTypeService = UnknownObjectTypeService(repository = repositories.unknownObjectTypeRepository)
+    val deliveryTargetLimitService: DeliveryTargetLimitService = DeliveryTargetLimitService(
+        settings = repositories.serverSettingsRepository,
+        followers = repositories.followerRepository,
+    )
     val followListService: FollowListService = FollowListService(
         accounts = repositories.accountRepository,
         following = repositories.followingRepository,
@@ -137,6 +142,7 @@ class AppDependencies(
                 imageStorage = imageStorage,
                 instanceActorKeyRepository = repositories.instanceActorKeyRepository,
                 unknownObjectTypeRepository = repositories.unknownObjectTypeRepository,
+                deliveryTargetLimitService = deliveryTargetLimitService,
                 remoteIconProxySigningKey = env.remoteIconProxySecret.encodeToByteArray(),
                 openTelemetry = OpenTelemetryInitializer.get(),
             )

@@ -17,6 +17,7 @@ import net.matsudamper.kmp.activitypub.logic.BlockLists
 import net.matsudamper.kmp.activitypub.logic.BoostService
 import net.matsudamper.kmp.activitypub.logic.CustomEmojiService
 import net.matsudamper.kmp.activitypub.logic.CustomEmojiUrls
+import net.matsudamper.kmp.activitypub.logic.DeliveryTargetLimitService
 import net.matsudamper.kmp.activitypub.logic.LikeService
 import net.matsudamper.kmp.activitypub.logic.LinkPreviewService
 import net.matsudamper.kmp.activitypub.logic.LocalNoteEmojiObjects
@@ -128,6 +129,7 @@ internal class Federation(
     imageStorage: ImageStorage?,
     instanceActorKeyRepository: InstanceActorKeyRepository,
     unknownObjectTypeRepository: UnknownObjectTypeRepository,
+    deliveryTargetLimitService: DeliveryTargetLimitService,
     remoteIconProxySigningKey: ByteArray,
     openTelemetry: OpenTelemetry,
 ) : AutoCloseable {
@@ -191,7 +193,7 @@ internal class Federation(
             blocks = inboxBlocks,
             notifications = notificationService,
             onEnqueued = deliveryQueueWorker::wakeUp,
-            maxDeliveryTargetsPerHost = { MAX_DELIVERY_TARGETS_PER_HOST },
+            maxDeliveryTargetsPerHost = deliveryTargetLimitService::maxPerHost,
         )
 
     private val kotpubRemoteUserLookup =
@@ -548,9 +550,3 @@ internal class Federation(
         publicAddressHttpClient.close()
     }
 }
-
-/**
- * 同じホストからのフォローで配る先の上限。Mastodon などの普通のサーバーは sharedInbox で 1 か所にまとまるので、
- * 効いてくるのは sharedInbox を持たない実装だけ
- */
-private const val MAX_DELIVERY_TARGETS_PER_HOST = 20
