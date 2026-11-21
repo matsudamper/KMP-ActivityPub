@@ -12,7 +12,6 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.joinAll
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withTimeoutOrNull
@@ -34,9 +33,9 @@ import org.slf4j.LoggerFactory
  * 起動時に delivering のまま残った行を戻すので、同じ DB に対してプロセスを 2 つ動かすと、
  * 動いている方が送っている行まで巻き戻して二重に送る
  *
- * 同じ inbox のホスト宛ては 1 件ずつ順に送り、ホストをまたいでは [SEND_CONCURRENCY] 件まで同時に送る。
- * 相手は自分の inbox の応答を遅らせられるので、順に送ると 1 つのホストが配信全体を待たせられる。
- * ホストごとに順に送るので、遅いホストが待たせるのはそのホスト宛ての行だけになる
+ * 同じ inbox のホスト宛ては取り出した順に 1 件ずつ送り、ホストをまたいでは同時に送る。
+ * 相手は自分の inbox の応答を遅らせられるので、全体を 1 件ずつ送ると 1 つのホストが配信全体を待たせられる。
+ * 送り終えていない行があるホスト宛ては新しく取り出さないので、遅いホストの行が手元に溜まり続けることもない
  */
 class DeliveryQueueWorker(
     private val queue: DeliveryQueueRepository,
@@ -50,7 +49,14 @@ class DeliveryQueueWorker(
     private val logger = LoggerFactory.getLogger(DeliveryQueueWorker::class.java)
     private val wakeUpSignal = Channel<Unit>(Channel.CONFLATED)
     private val sendPermits = Semaphore(SEND_CONCURRENCY)
-    private val inboxHostLanes = InboxHostLanes()
+    private val laneClosedSignal = Channel<Unit>(Channel.CONFLATED)
+    private val inboxHostLanes = InboxHostLanes(
+        onLaneClosed = {
+            laneClosedSignal.trySend(Unit)
+            // 送り終えたホスト宛てに、取り出さずにおいた行が残っていることがある
+            wakeUpSignal.trySend(Unit)
+        },
+    )
 
     fun wakeUp() {
         wakeUpSignal.trySend(Unit)
@@ -65,7 +71,7 @@ class DeliveryQueueWorker(
                 val hasMore =
                     try {
                         val claimed = claim()
-                        claimed.forEach { row -> sendingScope.launch { deliverInLane(row) } }
+                        inboxHostLanes.enqueue(sendingScope, claimed, ::sendWithPermit)
                         claimed.size >= BATCH_SIZE
                     } catch (e: CancellationException) {
                         throw e
@@ -77,8 +83,8 @@ class DeliveryQueueWorker(
                         false
                     }
                 if (hasMore) {
-                    // 送り手が空くまで次を取り出さない。取り出した行は送り終えるまで delivering のまま持つ
-                    sendPermits.withPermit { }
+                    // 取り出した行は送り終えるまで手元に持つので、送っているホストの数で次を取り出すのを止める
+                    while (inboxHostLanes.activeCount >= MAX_ACTIVE_HOSTS) laneClosedSignal.receive()
                 } else {
                     withTimeoutOrNull(POLL_INTERVAL) { wakeUpSignal.receive() }
                 }
@@ -94,15 +100,13 @@ class DeliveryQueueWorker(
     suspend fun deliverDue(): Boolean {
         val claimed = claim()
         coroutineScope {
-            claimed.forEach { row -> launch { deliverInLane(row) } }
+            inboxHostLanes.enqueue(this, claimed, ::sendWithPermit)
         }
         return claimed.size >= BATCH_SIZE
     }
 
-    private suspend fun deliverInLane(row: ClaimedDelivery) {
-        inboxHostLanes.withLane(InboxHostLanes.hostOf(row.inbox)) {
-            sendPermits.withPermit { deliverInSpan(row) }
-        }
+    private suspend fun sendWithPermit(row: ClaimedDelivery) {
+        sendPermits.withPermit { deliverInSpan(row) }
     }
 
     private suspend fun deliverInSpan(row: ClaimedDelivery) {
@@ -135,7 +139,7 @@ class DeliveryQueueWorker(
         val startedAt = clock.instant()
         val claimed = try {
             withoutPollingSpans {
-                withOpenTelemetryContext { queue.claim(now = startedAt, limit = BATCH_SIZE) }
+                withOpenTelemetryContext { queue.claim(now = startedAt, limit = BATCH_SIZE, excludedInboxHosts = inboxHostLanes.activeHosts) }
             }
         } catch (e: CancellationException) {
             throw e
@@ -231,6 +235,7 @@ class DeliveryQueueWorker(
     private companion object {
         const val BATCH_SIZE = 20
         const val SEND_CONCURRENCY = 8
+        const val MAX_ACTIVE_HOSTS = 32
         val POLL_INTERVAL: Duration = 30.seconds
     }
 }

@@ -327,6 +327,7 @@ internal class SqliteDeliveryQueueRepository(
     override fun claim(
         now: Instant,
         limit: Int,
+        excludedInboxHosts: Set<String>,
     ): List<ClaimedDelivery> = jooq.transaction { dsl ->
         val due =
             dsl.select(
@@ -344,6 +345,7 @@ internal class SqliteDeliveryQueueRepository(
                 .and(DELIVERY_QUEUE.NEXT_ATTEMPT_AT.le(StoredInstant.format(now)))
                 .andNot(likeWaitingForEarlierUndo(dsl))
                 .andNot(noteUpdateWaitingForCreate(dsl))
+                .and(DSL.and(excludedInboxHosts.map { host -> DSL.not(inboxOnHost(host)) }))
                 .orderBy(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, DELIVERY_QUEUE.ID)
                 .limit(limit)
                 .fetch { record ->
@@ -492,6 +494,15 @@ internal class SqliteDeliveryQueueRepository(
             .set(DELIVERY_QUEUE.INBOX, inbox).set(DELIVERY_QUEUE.BODY, body).set(DELIVERY_QUEUE.STATE, DeliveryQueueValues.STATE_PENDING)
             .set(DELIVERY_QUEUE.ATTEMPTS, 0L).set(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, StoredInstant.format(now))
             .set(DELIVERY_QUEUE.ENQUEUED_AT, StoredInstant.format(now)).execute()
+    }
+
+    /**
+     * inbox の URL のホストが [host] か。ポート付きの URL も含める
+     */
+    private fun inboxOnHost(host: String): Condition {
+        val escapedHost = host.lowercase().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        val inbox = DSL.lower(DELIVERY_QUEUE.INBOX)
+        return inbox.like("%://$escapedHost/%", '\\').or(inbox.like("%://$escapedHost:%", '\\'))
     }
 
     private fun quotingNoteIdOf(acceptBody: Field<*>): Field<String> =

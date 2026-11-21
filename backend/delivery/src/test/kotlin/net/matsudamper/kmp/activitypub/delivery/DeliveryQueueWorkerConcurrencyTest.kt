@@ -70,6 +70,45 @@ class DeliveryQueueWorkerConcurrencyTest {
         assertEquals(5, queue.delivered.size)
     }
 
+    @Test
+    fun sameInboxHostIsDeliveredInClaimedOrder() = runBlocking {
+        val deliveredInboxes = Collections.synchronizedList(mutableListOf<String>())
+        val queue = Queue(List(10) { row(id = it.toLong(), inbox = "https://same.example/users/$it/inbox") })
+        val worker = worker(queue) { inbox ->
+            // 後に取り出した行ほど早く終わるようにしても、取り出した順に送る
+            delay((10 - inbox.substringAfter("/users/").substringBefore("/").toLong()))
+            deliveredInboxes.add(inbox)
+        }
+
+        worker.deliverDue()
+
+        assertEquals(List(10) { "https://same.example/users/$it/inbox" }, deliveredInboxes.toList())
+    }
+
+    @Test
+    fun hostWithUnfinishedDeliveryIsNotClaimedAgain() = runBlocking {
+        val releaseSlow = CompletableDeferred<Unit>()
+        val otherDelivered = CompletableDeferred<Unit>()
+        val queue = Queue(
+            List(BATCH) { row(id = it.toLong(), inbox = "https://slow.example/inbox") } +
+                List(BATCH) { row(id = 100L + it, inbox = "https://slow.example/inbox") } +
+                row(id = 200, inbox = "https://other.example/inbox"),
+        )
+        val worker = worker(queue) { inbox ->
+            if (inbox.startsWith("https://slow.example/")) releaseSlow.await() else otherDelivered.complete(Unit)
+        }
+
+        val running = launch { worker.run() }
+        try {
+            withTimeout(5000) { otherDelivered.await() }
+            // 遅いホスト宛ての 2 回目の分は、1 回目を送り終えるまで取り出さない
+            assertEquals(setOf("slow.example"), queue.excludedOnEachClaim[1])
+        } finally {
+            releaseSlow.complete(Unit)
+            running.cancelAndJoin()
+        }
+    }
+
     private fun worker(queue: Queue, onDeliver: suspend (String) -> Unit) = DeliveryQueueWorker(
         queue,
         DeliverySenders { SENDER },
@@ -91,9 +130,12 @@ class DeliveryQueueWorkerConcurrencyTest {
         private val pending = rows.toMutableList()
         val delivered: MutableList<Long> = Collections.synchronizedList(mutableListOf())
 
+        val excludedOnEachClaim: MutableList<Set<String>> = Collections.synchronizedList(mutableListOf())
+
         @Synchronized
-        override fun claim(now: Instant, limit: Int): List<ClaimedDelivery> {
-            val claimed = pending.take(limit)
+        override fun claim(now: Instant, limit: Int, excludedInboxHosts: Set<String>): List<ClaimedDelivery> {
+            excludedOnEachClaim.add(excludedInboxHosts)
+            val claimed = pending.filter { InboxHostLanes.hostOf(it.inbox) !in excludedInboxHosts }.take(limit)
             pending.removeAll(claimed)
             return claimed
         }

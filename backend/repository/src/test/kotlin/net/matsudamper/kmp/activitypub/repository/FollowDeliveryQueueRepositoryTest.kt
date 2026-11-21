@@ -88,6 +88,25 @@ class FollowDeliveryQueueRepositoryTest {
         assertEquals(listOf(quoteAcceptBody("accept-2", "note-a")), queue.claim(NOW, 10).map { it.body })
     }
 
+    @Test
+    fun claimSkipsInboxesOnExcludedHosts() = withQueue { queue, alice, _ ->
+        listOf(
+            "https://a.example/inbox",
+            "https://A.example:8443/users/1/inbox",
+            "https://b.example/inbox",
+            "https://a.example.evil/inbox",
+            "https://a_example/inbox",
+        ).forEach { inbox -> queue.enqueueFollow(alice, inbox, followBody(inbox), NOW) }
+        assertEquals(
+            listOf("https://b.example/inbox", "https://a.example.evil/inbox", "https://a_example/inbox"),
+            queue.claim(NOW, 10, excludedInboxHosts = setOf("a.example")).map { it.inbox },
+        )
+        assertEquals(
+            listOf("https://a.example/inbox", "https://A.example:8443/users/1/inbox"),
+            queue.claim(NOW, 10).map { it.inbox },
+        )
+    }
+
     private fun quoteAcceptBody(id: String, instrument: String): String =
         """{"id":"$id","type":"Accept","object":{"id":"request","type":"QuoteRequest","instrument":"$instrument"}}"""
 

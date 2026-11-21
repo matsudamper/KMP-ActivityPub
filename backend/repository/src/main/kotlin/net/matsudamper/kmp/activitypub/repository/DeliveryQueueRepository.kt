@@ -65,10 +65,14 @@ interface DeliveryQueueRepository {
 
     /**
      * 送る時刻を過ぎた pending を古い順に delivering にして返す。attempts はここで増やす
+     *
+     * @param excludedInboxHosts このホストの inbox 宛ては返さない。送り終えていない行があるホスト宛てを
+     *   取り出すと、手元で前の行が終わるのを待つ行が溜まり続ける
      */
     fun claim(
         now: Instant,
         limit: Int,
+        excludedInboxHosts: Set<String> = setOf(),
     ): List<ClaimedDelivery>
 
     /**
