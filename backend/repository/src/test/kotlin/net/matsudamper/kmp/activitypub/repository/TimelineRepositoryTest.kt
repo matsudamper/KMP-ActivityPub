@@ -22,11 +22,11 @@ class TimelineRepositoryTest {
         following.remove(alice, ACTOR)
         assertEquals(false, following.recordActivityAndEnqueueFollow(alice, ACTOR, "removed", "$ACTOR/inbox", "removed-follow", NOW))
         assertNull(following.followId(alice, ACTOR))
-        assertTrue(queue.claim(NOW, 10).isEmpty())
+        assertTrue(queue.claim(NOW, 10, setOf()).isEmpty())
         following.add(alice, ACTOR, NOW)
         assertTrue(following.recordActivityAndEnqueueFollow(alice, ACTOR, "current", "$ACTOR/inbox", "current-follow", NOW))
         assertEquals("current", following.followId(alice, ACTOR))
-        assertEquals(listOf("current-follow"), queue.claim(NOW, 10).map { it.body })
+        assertEquals(listOf("current-follow"), queue.claim(NOW, 10, setOf()).map { it.body })
     }
 
     @Test
@@ -404,7 +404,7 @@ class TimelineRepositoryTest {
         repositories.followingRepository.recordActivity(account, ACTOR, "follow-1")
         repositories.deliveryQueueRepository.enqueueFollow(account, "$ACTOR/inbox", "follow", NOW)
         assertEquals("follow-1", repositories.followingRepository.followId(account, ACTOR))
-        assertEquals("follow", repositories.deliveryQueueRepository.claim(NOW, 10).single().body)
+        assertEquals("follow", repositories.deliveryQueueRepository.claim(NOW, 10, setOf()).single().body)
         assertEquals(0, repositories.followingRepository.respondToFollow(ACTOR, "old-follow", null))
         assertTrue(repositories.followingRepository.contains(account, ACTOR))
         assertEquals(1, repositories.followingRepository.respondToFollow(ACTOR, "follow-1", NOW))

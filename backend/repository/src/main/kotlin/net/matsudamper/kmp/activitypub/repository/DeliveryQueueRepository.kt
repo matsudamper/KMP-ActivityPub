@@ -72,7 +72,7 @@ interface DeliveryQueueRepository {
     fun claim(
         now: Instant,
         limit: Int,
-        excludedInboxHosts: Set<String> = setOf(),
+        excludedInboxHosts: Set<String>,
     ): List<ClaimedDelivery>
 
     /**

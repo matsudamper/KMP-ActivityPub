@@ -11,7 +11,7 @@ class FailedDeliveryRepositoryTest {
     @Test
     fun pageReturnsOnlyGivenUpDeliveriesNewestFirst() = withRepositories { queue, failed, alice ->
         listOf("first", "second", "third").forEach { queue.enqueueFollow(alice, "$INBOX/$it", it, NOW) }
-        val (first, second, third) = queue.claim(NOW, 10)
+        val (first, second, third) = queue.claim(NOW, 10, setOf())
         queue.giveUp(first.id, error = "410", failedAt = FAILED_AT)
         queue.scheduleRetry(second.id, NOW.plusSeconds(60), "接続失敗")
         queue.giveUp(third.id, error = "403", failedAt = FAILED_AT)
@@ -46,7 +46,7 @@ class FailedDeliveryRepositoryTest {
     @Test
     fun pageContinuesBeforeTheGivenId() = withRepositories { queue, failed, alice ->
         listOf("first", "second", "third").forEach { queue.enqueueFollow(alice, "$INBOX/$it", it, NOW) }
-        val claimed = queue.claim(NOW, 10)
+        val claimed = queue.claim(NOW, 10, setOf())
         claimed.forEach { queue.giveUp(it.id, error = "410", failedAt = FAILED_AT) }
 
         val firstPage = failed.page(beforeId = null, limit = 2)
@@ -57,7 +57,7 @@ class FailedDeliveryRepositoryTest {
     @Test
     fun findReturnsNullUnlessGivenUp() = withRepositories { queue, failed, alice ->
         queue.enqueueFollow(alice, INBOX, "pending", NOW)
-        val pending = queue.claim(NOW, 10).single()
+        val pending = queue.claim(NOW, 10, setOf()).single()
         assertNull(failed.find(pending.id))
 
         queue.giveUp(pending.id, error = "410", failedAt = FAILED_AT)

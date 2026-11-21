@@ -36,7 +36,9 @@ internal class InboxHostLanes(
                 val host = InboxHost.of(row.inbox)
                 val lane = lanes[host]
                 if (lane == null) {
-                    ArrayDeque(listOf(row)).also { lanes[host] = it }.let { host to it }
+                    val openedLane = ArrayDeque(listOf(row))
+                    lanes[host] = openedLane
+                    host to openedLane
                 } else {
                     lane.addLast(row)
                     null
@@ -55,11 +57,11 @@ internal class InboxHostLanes(
             while (true) {
                 // 空なのを見てから消すまでの間に足された行を取りこぼさないよう、同じロックの中で消す
                 val row = synchronized(lanes) {
-                    lane.removeFirstOrNull() ?: run {
-                        lanes.remove(host)
-                        null
-                    }
-                } ?: break
+                    val next = lane.removeFirstOrNull()
+                    if (next == null) lanes.remove(host)
+                    next
+                }
+                if (row == null) break
                 send(row)
             }
         } finally {

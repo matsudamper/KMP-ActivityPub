@@ -48,7 +48,7 @@ class FollowerRepositoryTest {
             assertEquals(0, followers.countAcceptedFollowers("user1"))
             assertEquals(listOf(), followers.listAcceptedFollowerActorUris(username = "user1", after = null, limit = 10))
 
-            val claimed = queue.claim(now = NOW, limit = 10).single()
+            val claimed = queue.claim(now = NOW, limit = 10, excludedInboxHosts = setOf()).single()
             assertEquals("user1", claimed.username)
             assertEquals(FOLLOWER.inbox, claimed.inbox)
             assertEquals(ACCEPT_BODY, claimed.body)
@@ -62,7 +62,7 @@ class FollowerRepositoryTest {
             )
             assertEquals(listOf(FOLLOWER.sharedInbox), followers.findDeliveryInboxes("user1"))
             assertEquals(0, queue.recoverDelivering(now = NOW))
-            assertEquals(listOf(), queue.claim(now = NOW, limit = 10))
+            assertEquals(listOf(), queue.claim(now = NOW, limit = 10, excludedInboxHosts = setOf()))
         }
     }
 
@@ -81,7 +81,7 @@ class FollowerRepositoryTest {
             followers.recordFollow(FOLLOWER)
             followers.recordFollow(FOLLOWER, followActivityUri = "https://remote.example/follows/2", acceptBody = "accept-2")
 
-            val claimed = repositories.deliveryQueueRepository.claim(now = NOW, limit = 10).single()
+            val claimed = repositories.deliveryQueueRepository.claim(now = NOW, limit = 10, excludedInboxHosts = setOf()).single()
             assertEquals("accept-2", claimed.body)
             assertEquals("user1", followers.findFolloweeUsername(FOLLOWER.actorUri, "https://remote.example/follows/2"))
             assertNull(followers.findFolloweeUsername(FOLLOWER.actorUri, FOLLOW_ACTIVITY_URI))
@@ -94,13 +94,13 @@ class FollowerRepositoryTest {
             val followers = repositories.followerRepository
             val queue = repositories.deliveryQueueRepository
             followers.recordFollow(FOLLOWER)
-            val oldClaimed = queue.claim(now = NOW, limit = 10).single()
+            val oldClaimed = queue.claim(now = NOW, limit = 10, excludedInboxHosts = setOf()).single()
             followers.recordFollow(FOLLOWER, followActivityUri = "https://remote.example/follows/2", acceptBody = "accept-2")
 
             queue.markDelivered(oldClaimed.id, deliveredAt = NOW)
 
             assertEquals(0, followers.countAcceptedFollowers("user1"))
-            assertEquals("accept-2", queue.claim(now = NOW, limit = 10).single().body)
+            assertEquals("accept-2", queue.claim(now = NOW, limit = 10, excludedInboxHosts = setOf()).single().body)
         }
     }
 
@@ -110,13 +110,13 @@ class FollowerRepositoryTest {
             val followers = repositories.followerRepository
             val queue = repositories.deliveryQueueRepository
             followers.recordFollow(FOLLOWER)
-            val oldClaimed = queue.claim(now = NOW, limit = 10).single()
+            val oldClaimed = queue.claim(now = NOW, limit = 10, excludedInboxHosts = setOf()).single()
             followers.recordFollow(FOLLOWER, followActivityUri = "https://remote.example/follows/2", acceptBody = "accept-2")
 
             queue.giveUp(oldClaimed.id, error = "410", failedAt = NOW)
 
             assertEquals("user1", followers.findFolloweeUsername(FOLLOWER.actorUri, "https://remote.example/follows/2"))
-            assertEquals("accept-2", queue.claim(now = NOW, limit = 10).single().body)
+            assertEquals("accept-2", queue.claim(now = NOW, limit = 10, excludedInboxHosts = setOf()).single().body)
         }
     }
 
@@ -125,12 +125,12 @@ class FollowerRepositoryTest {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             val queue = repositories.deliveryQueueRepository
             repositories.followerRepository.recordFollow(FOLLOWER)
-            val claimed = queue.claim(now = NOW, limit = 10).single()
+            val claimed = queue.claim(now = NOW, limit = 10, excludedInboxHosts = setOf()).single()
 
             queue.scheduleRetry(claimed.id, nextAttemptAt = NOW.plusSeconds(60), error = "503")
 
-            assertEquals(listOf(), queue.claim(now = NOW, limit = 10))
-            assertEquals(2, queue.claim(now = NOW.plusSeconds(60), limit = 10).single().attempts)
+            assertEquals(listOf(), queue.claim(now = NOW, limit = 10, excludedInboxHosts = setOf()))
+            assertEquals(2, queue.claim(now = NOW.plusSeconds(60), limit = 10, excludedInboxHosts = setOf()).single().attempts)
         }
     }
 
@@ -139,11 +139,11 @@ class FollowerRepositoryTest {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             val queue = repositories.deliveryQueueRepository
             repositories.followerRepository.recordFollow(FOLLOWER)
-            queue.claim(now = NOW, limit = 10)
+            queue.claim(now = NOW, limit = 10, excludedInboxHosts = setOf())
 
-            assertEquals(listOf(), queue.claim(now = NOW, limit = 10))
+            assertEquals(listOf(), queue.claim(now = NOW, limit = 10, excludedInboxHosts = setOf()))
             assertEquals(1, queue.recoverDelivering(now = NOW))
-            assertEquals(ACCEPT_BODY, queue.claim(now = NOW, limit = 10).single().body)
+            assertEquals(ACCEPT_BODY, queue.claim(now = NOW, limit = 10, excludedInboxHosts = setOf()).single().body)
         }
     }
 
@@ -153,13 +153,13 @@ class FollowerRepositoryTest {
             val followers = repositories.followerRepository
             val queue = repositories.deliveryQueueRepository
             followers.recordFollow(FOLLOWER)
-            val claimed = queue.claim(now = NOW, limit = 10).single()
+            val claimed = queue.claim(now = NOW, limit = 10, excludedInboxHosts = setOf()).single()
 
             queue.giveUp(claimed.id, error = "410", failedAt = NOW)
 
             assertNull(followers.findFolloweeUsername(FOLLOWER.actorUri, FOLLOW_ACTIVITY_URI))
             assertEquals(0, queue.recoverDelivering(now = NOW))
-            assertEquals(listOf(), queue.claim(now = NOW, limit = 10))
+            assertEquals(listOf(), queue.claim(now = NOW, limit = 10, excludedInboxHosts = setOf()))
         }
     }
 
@@ -169,7 +169,7 @@ class FollowerRepositoryTest {
             val followers = repositories.followerRepository
             followers.recordFollow(FOLLOWER)
             val queue = repositories.deliveryQueueRepository
-            queue.markDelivered(queue.claim(now = NOW, limit = 10).single().id, deliveredAt = NOW)
+            queue.markDelivered(queue.claim(now = NOW, limit = 10, excludedInboxHosts = setOf()).single().id, deliveredAt = NOW)
 
             assertFalse(followers.remove(username = "user1", followerActorUri = FOLLOWER.actorUri, followActivityUri = "https://remote.example/other"))
             assertTrue(followers.remove(username = "user1", followerActorUri = FOLLOWER.actorUri, followActivityUri = FOLLOW_ACTIVITY_URI))
@@ -188,7 +188,7 @@ class FollowerRepositoryTest {
             assertEquals(1, followers.removeRemoteActor(FOLLOWER.actorUri, NOW))
 
             assertNull(followers.findPublicKeyPem(FOLLOWER.actorUri))
-            assertEquals(listOf(), repositories.deliveryQueueRepository.claim(now = NOW, limit = 10))
+            assertEquals(listOf(), repositories.deliveryQueueRepository.claim(now = NOW, limit = 10, excludedInboxHosts = setOf()))
         }
     }
 
@@ -201,7 +201,7 @@ class FollowerRepositoryTest {
             val pending = FOLLOWER.copy(actorUri = "https://remote.example/users/carol", inbox = "https://remote.example/users/carol/inbox")
             followers.recordFollow(FOLLOWER, followActivityUri = "https://remote.example/follows/alice")
             followers.recordFollow(older, followActivityUri = "https://remote.example/follows/bob")
-            queue.claim(now = NOW, limit = 10).forEach { claimed ->
+            queue.claim(now = NOW, limit = 10, excludedInboxHosts = setOf()).forEach { claimed ->
                 val deliveredAt = if (claimed.inbox == older.inbox) NOW else NOW.plusSeconds(1)
                 queue.markDelivered(claimed.id, deliveredAt = deliveredAt)
             }
@@ -234,7 +234,7 @@ class FollowerRepositoryTest {
             assertFalse(repositories.followerRepository.recordFollow(FOLLOWER))
 
             assertEquals(listOf(), repositories.followerRepository.listFollowRecords("user1"))
-            assertEquals(listOf(), repositories.deliveryQueueRepository.claim(now = NOW, limit = 10))
+            assertEquals(listOf(), repositories.deliveryQueueRepository.claim(now = NOW, limit = 10, excludedInboxHosts = setOf()))
         }
     }
 
@@ -254,7 +254,7 @@ class FollowerRepositoryTest {
             assertTrue(followers.reject("user1", FOLLOWER.actorUri, FOLLOW_ACTIVITY_URI, false, FOLLOWER.inbox, "reject-1", NOW))
 
             assertEquals(listOf(), followers.listFollowRecords("user1"))
-            val claimed = repositories.deliveryQueueRepository.claim(now = NOW, limit = 10).single()
+            val claimed = repositories.deliveryQueueRepository.claim(now = NOW, limit = 10, excludedInboxHosts = setOf()).single()
             assertEquals(FOLLOWER.inbox, claimed.inbox)
             assertEquals("reject-1", claimed.body)
             assertFalse(followers.reject("nobody", FOLLOWER.actorUri, FOLLOW_ACTIVITY_URI, true, FOLLOWER.inbox, "reject-2", NOW))
@@ -266,11 +266,11 @@ class FollowerRepositoryTest {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             val followers = repositories.followerRepository
             assertTrue(followers.recordFollow(FOLLOWER, followActivityUri = "https://remote.example/follows/new"))
-            repositories.deliveryQueueRepository.markDelivered(repositories.deliveryQueueRepository.claim(now = NOW, limit = 10).single().id, NOW)
+            repositories.deliveryQueueRepository.markDelivered(repositories.deliveryQueueRepository.claim(now = NOW, limit = 10, excludedInboxHosts = setOf()).single().id, NOW)
 
             assertTrue(followers.reject("user1", FOLLOWER.actorUri, FOLLOW_ACTIVITY_URI, true, FOLLOWER.inbox, "reject-1", NOW))
 
-            assertEquals(listOf("reject-1"), repositories.deliveryQueueRepository.claim(now = NOW, limit = 10).map { it.body })
+            assertEquals(listOf("reject-1"), repositories.deliveryQueueRepository.claim(now = NOW, limit = 10, excludedInboxHosts = setOf()).map { it.body })
             assertEquals(listOf("https://remote.example/follows/new"), followers.listFollowRecords("user1").map { it.followActivityUri })
         }
     }
