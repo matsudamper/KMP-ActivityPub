@@ -187,7 +187,8 @@ class UserMutationResolverImpl : UserMutationResolver {
         val accountId = GraphQlEngine.graphQlContext(env).userAccountId()
         return otelSupplyAsync {
             val failure = when {
-                accountId == null -> QlUpdateMaxDeliveryTargetsPerHostFailure.NOT_LOGGED_IN
+                // セッションが残っていても、アカウントは消えていることがある
+                accountId == null || diContainer.accountService.account(accountId) == null -> QlUpdateMaxDeliveryTargetsPerHostFailure.NOT_LOGGED_IN
 
                 accountId !in diContainer.adminAccountIds -> QlUpdateMaxDeliveryTargetsPerHostFailure.NOT_ADMIN
 
