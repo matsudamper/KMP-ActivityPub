@@ -35,6 +35,7 @@ import kotlin.math.roundToInt
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.screen.admin.AdminScreen
+import net.matsudamper.kmp.activitypub.frontend.screen.admin.deliverytargetlimit.DeliveryTargetLimitScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.admin.faileddeliveries.FailedDeliveriesScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.admin.faileddelivery.FailedDeliveryScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.admin.unknownobjecttypes.UnknownObjectTypesScreen
@@ -401,6 +402,10 @@ private fun ScreenContent(
 
         Screen.UnknownObjectTypes -> {
             UnknownObjectTypesScreen(navigator = navigator)
+        }
+
+        Screen.DeliveryTargetLimit -> {
+            DeliveryTargetLimitScreen(navigator = navigator)
         }
 
         Screen.Following -> {

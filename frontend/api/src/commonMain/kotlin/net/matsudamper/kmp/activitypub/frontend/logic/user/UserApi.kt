@@ -43,6 +43,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.CreateFollowingGroupMuta
 import net.matsudamper.kmp.activitypub.frontend.graphql.CustomEmojisQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.DeleteCustomEmojiMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.DeleteNoteMutation
+import net.matsudamper.kmp.activitypub.frontend.graphql.DeliveryTargetLimitQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.EditNoteMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.EditableNoteBodyQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FailedDeliveriesQuery
@@ -846,6 +847,18 @@ class UserApi(
         val userInfo = data.userInfo ?: return UserFailedDeliveryResult.NotLoggedIn
         val delivery = userInfo.failedDelivery ?: return UserFailedDeliveryResult.NotFound
         return UserFailedDeliveryResult.Found(delivery.failedDeliveryFields.toUserFailedDelivery())
+    }
+
+    suspend fun deliveryTargetLimit(): UserDeliveryTargetLimitResult {
+        val client = clients.awaitLoadedClient() ?: return UserDeliveryTargetLimitResult.Failure("接続先が未設定")
+        val response = client.query(DeliveryTargetLimitQuery()).fetchPolicy(FetchPolicy.NetworkOnly).execute()
+        if (response.exception != null || response.hasErrors()) return UserDeliveryTargetLimitResult.Failure(response.failureMessage())
+        val data = response.data ?: return UserDeliveryTargetLimitResult.Failure(response.failureMessage())
+        val limit = data.userInfo?.deliveryTargetLimit ?: return UserDeliveryTargetLimitResult.NotLoggedIn
+        return UserDeliveryTargetLimitResult.Success(
+            maxPerHost = limit.maxPerHost,
+            hosts = limit.hosts.map { UserDeliveryTargetHost(host = it.host, deliveryTargetCount = it.deliveryTargetCount) },
+        )
     }
 
     /**

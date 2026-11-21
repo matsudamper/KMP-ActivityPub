@@ -60,6 +60,10 @@ internal fun AdminScreen(
                     navigator.navigate(Screen.UnknownObjectTypes)
                 }
 
+                override fun navigateToDeliveryTargetLimit() {
+                    navigator.navigate(Screen.DeliveryTargetLimit)
+                }
+
                 override fun showMessage(message: String) {
                     coroutineScope.launch { snackbarHostState.showSnackbar(message) }
                 }
@@ -115,6 +119,7 @@ internal fun AdminContent(
                         RemoteProfileRefreshSection(uiState = content.remoteProfileRefresh)
                         FailedDeliveriesSection(onClickOpen = uiState.listener::onClickFailedDeliveries)
                         UnknownObjectTypesSection(onClickOpen = uiState.listener::onClickUnknownObjectTypes)
+                        DeliveryTargetLimitSection(onClickOpen = uiState.listener::onClickDeliveryTargetLimit)
                     }
                 }
 
@@ -206,6 +211,30 @@ private fun UnknownObjectTypesSection(
         )
         Button(onClick = onClickOpen) {
             Text(text = "知らない型を見る")
+        }
+    }
+}
+
+@Composable
+private fun DeliveryTargetLimitSection(
+    onClickOpen: () -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = "フォロー",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = "同じサーバーからのフォローで配る先の数と、その上限を確認できます。配る先が増えて上限を超えるフォローは断ります。",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Button(onClick = onClickOpen) {
+            Text(text = "配る先の上限を見る")
         }
     }
 }
