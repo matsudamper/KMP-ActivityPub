@@ -62,3 +62,23 @@ query UnknownObjectTypes($after: String, $limit: Int!) {
         }
     }
 }
+
+query DeliveryTargetLimit {
+    userInfo {
+        deliveryTargetLimit {
+            maxPerHost
+            hosts {
+                host
+                deliveryTargetCount
+            }
+        }
+    }
+}
+
+mutation UpdateMaxDeliveryTargetsPerHost($maxPerHost: Int!) {
+    user {
+        updateMaxDeliveryTargetsPerHost(maxPerHost: $maxPerHost) {
+            failure
+        }
+    }
+}
