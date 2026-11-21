@@ -44,8 +44,6 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlUnblockAccountFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlUnblockAccountResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUnblockServerFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlUnblockServerResult
-import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateMaxDeliveryTargetsPerHostFailure
-import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateMaxDeliveryTargetsPerHostResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileHeaderFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileHeaderResult
@@ -67,7 +65,6 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlUserPostNoteFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserPostNoteResult
 import net.matsudamper.kmp.activitypub.graphql.model.UserMutationResolver
 import net.matsudamper.kmp.activitypub.graphql.otelFuture
-import net.matsudamper.kmp.activitypub.graphql.otelSupplyAsync
 import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.BlockActorResult
 import net.matsudamper.kmp.activitypub.logic.BlockServerResult
@@ -88,7 +85,6 @@ import net.matsudamper.kmp.activitypub.logic.SetPinnedResult
 import net.matsudamper.kmp.activitypub.logic.SetReactionResult
 import net.matsudamper.kmp.activitypub.logic.UnblockActorResult
 import net.matsudamper.kmp.activitypub.logic.UnblockServerResult
-import net.matsudamper.kmp.activitypub.logic.UpdateDeliveryTargetLimitResult
 import net.matsudamper.kmp.activitypub.logic.UpdateHeaderResult
 import net.matsudamper.kmp.activitypub.logic.UpdateIconResult
 import net.matsudamper.kmp.activitypub.logic.UpdateProfileResult
@@ -175,29 +171,6 @@ class UserMutationResolverImpl : UserMutationResolver {
                 BlockServerResult.InvalidServer -> QlBlockServerResult(host = null, failure = QlBlockServerFailure.INVALID_SERVER)
             }
             DataFetcherResult.Builder(qlResult).build()
-        }
-    }
-
-    override fun updateMaxDeliveryTargetsPerHost(
-        userMutation: QlUserMutation,
-        maxPerHost: Int,
-        env: DataFetchingEnvironment,
-    ): CompletionStage<DataFetcherResult<QlUpdateMaxDeliveryTargetsPerHostResult>> {
-        val diContainer = GraphQlEngine.diContainer(env)
-        val accountId = GraphQlEngine.graphQlContext(env).userAccountId()
-        return otelSupplyAsync {
-            val failure = when {
-                // セッションが残っていても、アカウントは消えていることがある
-                accountId == null || diContainer.accountService.account(accountId) == null -> QlUpdateMaxDeliveryTargetsPerHostFailure.NOT_LOGGED_IN
-
-                accountId !in diContainer.adminAccountIds -> QlUpdateMaxDeliveryTargetsPerHostFailure.NOT_ADMIN
-
-                else -> when (diContainer.deliveryTargetLimitService.updateMaxPerHost(maxPerHost)) {
-                    UpdateDeliveryTargetLimitResult.Updated -> null
-                    UpdateDeliveryTargetLimitResult.OutOfRange -> QlUpdateMaxDeliveryTargetsPerHostFailure.OUT_OF_RANGE
-                }
-            }
-            DataFetcherResult.Builder(QlUpdateMaxDeliveryTargetsPerHostResult(failure = failure)).build()
         }
     }
 

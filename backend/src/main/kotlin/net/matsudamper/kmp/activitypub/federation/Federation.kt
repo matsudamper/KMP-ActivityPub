@@ -193,7 +193,7 @@ internal class Federation(
             blocks = inboxBlocks,
             notifications = notificationService,
             onEnqueued = deliveryQueueWorker::wakeUp,
-            maxDeliveryTargetsPerHost = deliveryTargetLimitService::maxPerHost,
+            maxDeliveryTargetsPerHost = { deliveryTargetLimitService.maxPerHost },
         )
 
     private val kotpubRemoteUserLookup =

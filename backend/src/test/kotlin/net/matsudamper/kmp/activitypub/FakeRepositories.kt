@@ -38,7 +38,6 @@ import net.matsudamper.kmp.activitypub.repository.RemoteActorSearchCursor
 import net.matsudamper.kmp.activitypub.repository.RemoteActorSearchRecord
 import net.matsudamper.kmp.activitypub.repository.Repositories
 import net.matsudamper.kmp.activitypub.repository.ServerBlockRepository
-import net.matsudamper.kmp.activitypub.repository.ServerSettingsRepository
 import net.matsudamper.kmp.activitypub.repository.StoredPasskey
 import net.matsudamper.kmp.activitypub.repository.UnknownObjectType
 import net.matsudamper.kmp.activitypub.repository.UnknownObjectTypeRepository
@@ -198,16 +197,6 @@ internal class FakeRepositories : Repositories {
         override fun findOrCreatePrivateKeyPem(newPrivateKeyPem: () -> String): String {
             if (stored.isEmpty()) stored += newPrivateKeyPem()
             return stored.first()
-        }
-    }
-
-    override val serverSettingsRepository: ServerSettingsRepository = object : ServerSettingsRepository {
-        private var maxDeliveryTargetsPerHost: Int? = null
-
-        override fun findMaxDeliveryTargetsPerHost(): Int? = maxDeliveryTargetsPerHost
-
-        override fun saveMaxDeliveryTargetsPerHost(limit: Int) {
-            maxDeliveryTargetsPerHost = limit
         }
     }
 

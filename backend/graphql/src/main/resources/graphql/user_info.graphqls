@@ -113,7 +113,7 @@ type UnknownObjectType {
 }
 
 type DeliveryTargetLimit {
-    "同じホストからのフォローで配る先の上限。UserMutation.updateMaxDeliveryTargetsPerHost で変える"
+    "同じホストからのフォローで配る先の上限"
     maxPerHost: Int!
     "フォローしてきた相手のホストごとの配る先の数。多い順。どのアカウントへのフォローかは問わず、まだ成立していないフォローも含める"
     hosts: [DeliveryTargetHost!]!

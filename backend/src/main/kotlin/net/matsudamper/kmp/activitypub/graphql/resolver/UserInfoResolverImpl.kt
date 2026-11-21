@@ -197,7 +197,7 @@ class UserInfoResolverImpl : UserInfoResolver {
         return otelSupplyAsync {
             val service = GraphQlEngine.diContainer(env).deliveryTargetLimitService
             val result = QlDeliveryTargetLimit(
-                maxPerHost = service.maxPerHost(),
+                maxPerHost = service.maxPerHost,
                 hosts = service.hostCounts().map { count ->
                     QlDeliveryTargetHost(host = count.host, deliveryTargetCount = count.deliveryInboxCount)
                 },

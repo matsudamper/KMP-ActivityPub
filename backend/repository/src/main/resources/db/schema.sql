@@ -624,10 +624,3 @@ CREATE TABLE unknown_object_types (
     last_seen_at TEXT NOT NULL,
     UNIQUE (type_name, source_url)
 );
-
--- サーバー全体の設定。id = 1 の行だけを使う。行が無いか列が NULL なら、その設定は既定の値
-CREATE TABLE server_settings (
-    id INTEGER PRIMARY KEY,
-    -- 同じホストからのフォローで配る先の上限。管理画面で変える
-    max_delivery_targets_per_host INTEGER
-);

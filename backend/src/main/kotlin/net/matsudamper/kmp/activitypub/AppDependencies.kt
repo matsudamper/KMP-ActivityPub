@@ -77,7 +77,7 @@ class AppDependencies(
     val failedDeliveryService: FailedDeliveryService = FailedDeliveryService(repository = repositories.failedDeliveryRepository)
     val unknownObjectTypeService: UnknownObjectTypeService = UnknownObjectTypeService(repository = repositories.unknownObjectTypeRepository)
     val deliveryTargetLimitService: DeliveryTargetLimitService = DeliveryTargetLimitService(
-        settings = repositories.serverSettingsRepository,
+        maxPerHost = MAX_DELIVERY_TARGETS_PER_HOST,
         followers = repositories.followerRepository,
     )
     val followListService: FollowListService = FollowListService(
@@ -277,3 +277,9 @@ class AppDependencies(
             )
     }
 }
+
+/**
+ * 同じホストからのフォローで配る先の上限。Mastodon などの普通のサーバーは sharedInbox で 1 か所にまとまるので、
+ * 効いてくるのは sharedInbox を持たない実装だけ
+ */
+private const val MAX_DELIVERY_TARGETS_PER_HOST = 20
