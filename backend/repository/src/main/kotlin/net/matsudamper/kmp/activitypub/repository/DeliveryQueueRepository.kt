@@ -14,7 +14,10 @@ interface DeliveryQueueRepository {
     fun enqueueFollow(accountId: AccountId, inbox: String, body: String, now: Instant)
 
     /**
-     * このサーバーの投稿の引用を承認した Accept を積む
+     * このサーバーの投稿の引用を承認した Accept を積む。
+     *
+     * 同じ引用（Accept の `object.instrument`）への Accept が同じ inbox にまだ送られずに残っていれば積まない。
+     * QuoteRequest は相手が何度でも送れるので、積むたびにその相手への配信が増え、配信全体を待たせられる
      */
     fun enqueueQuoteAccept(accountId: AccountId, inbox: String, body: String, now: Instant)
 
