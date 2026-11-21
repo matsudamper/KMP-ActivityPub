@@ -148,15 +148,7 @@ class AppDependencies(
             )
         }
 
-    val followingService: FollowingService = FollowingService(
-        accounts = repositories.accountRepository,
-        following = repositories.followingRepository,
-        blockLists = blockLists,
-        delivery = checkNotNull(federation).followDelivery,
-        invalidator = timelineService,
-        localDomain = checkNotNull(env.domain),
-        clock = Clock.systemUTC(),
-    )
+    val followingService: FollowingService = checkNotNull(federation).followingService
 
     val serverBlockService: ServerBlockService = ServerBlockService(
         accounts = repositories.accountRepository,
