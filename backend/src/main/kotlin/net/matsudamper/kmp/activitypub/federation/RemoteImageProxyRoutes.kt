@@ -6,8 +6,10 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.header
 import io.ktor.server.response.respondBytes
+import io.ktor.server.response.respondBytesWriter
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
+import io.ktor.utils.io.writeFully
 import net.matsudamper.kmp.activitypub.logic.RemoteImageProxy
 import net.matsudamper.kmp.activitypub.logic.RemoteImageProxyResult
 
@@ -39,7 +41,13 @@ private suspend fun respondRemoteImage(
                     "public, max-age=86400"
                 }
             call.response.header(HttpHeaders.CacheControl, cacheControl)
-            call.respondBytes(bytes = result.bytes, contentType = ContentType.parse(result.contentType), status = HttpStatusCode.OK)
+            call.respondBytesWriter(
+                contentType = ContentType.parse(result.contentType),
+                status = HttpStatusCode.OK,
+                contentLength = result.contentLength,
+            ) {
+                result.copyTo { buffer, length -> writeFully(buffer, startIndex = 0, endIndex = length) }
+            }
         }
 
         // 相手が落ちているだけのこともあるので、失敗を edge に残さない

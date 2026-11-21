@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.federation
 
+import net.matsudamper.kmp.activitypub.logic.RemoteImageBody
 import net.matsudamper.kmp.activitypub.logic.RemoteImageFetcher
 
 /**
@@ -8,11 +9,5 @@ import net.matsudamper.kmp.activitypub.logic.RemoteImageFetcher
 internal class PublicAddressRemoteImageFetcher(
     private val client: PublicAddressHttpClient,
 ) : RemoteImageFetcher {
-    override suspend fun fetch(
-        url: String,
-        maxBytes: Int,
-    ): ByteArray? {
-        val response = client.get(url = url, accept = "image/*", maxBytes = maxBytes) ?: return null
-        return response.bytes.takeIf { it.size <= maxBytes }
-    }
+    override suspend fun open(url: String): RemoteImageBody? = client.open(url = url, accept = "image/*")
 }

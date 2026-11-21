@@ -10,6 +10,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
+import net.matsudamper.kmp.activitypub.logic.ByteArrayRemoteImageBody
 import net.matsudamper.kmp.activitypub.logic.RemoteImageProxy
 import net.matsudamper.kmp.activitypub.logic.TestProfileIcons
 
@@ -24,9 +25,9 @@ class RemoteImageProxyRoutesTest {
                 RemoteImageProxy(
                     origin = "http://localhost",
                     signingKey = "test-key".encodeToByteArray(),
-                    fetcher = { url, _ ->
+                    fetcher = { url ->
                         assertEquals(remoteUrl, url)
-                        bytes
+                        ByteArrayRemoteImageBody(bytes)
                     },
                 )
             application {
