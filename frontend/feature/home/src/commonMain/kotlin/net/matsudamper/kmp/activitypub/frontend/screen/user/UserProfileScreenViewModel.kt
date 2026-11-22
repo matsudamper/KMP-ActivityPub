@@ -56,6 +56,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemQuote
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.createProfileMedia
 import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
+import net.matsudamper.kmp.activitypub.frontend.screen.createUrlLinkedText
 import net.matsudamper.kmp.activitypub.frontend.screen.decideLikeTap
 import net.matsudamper.kmp.activitypub.frontend.screen.decidePickedReaction
 import net.matsudamper.kmp.activitypub.frontend.screen.decideStampTap
@@ -757,7 +758,9 @@ internal class UserProfileScreenViewModel(
             iconUrl = profile.iconUrl,
             headerUrl = profile.headerUrl,
             displayName = createTextWithEmojis(text = profile.displayName, emojis = profile.displayNameEmojis),
-            biography = profile.biography,
+            biography = profile.biography?.let { biography ->
+                createUrlLinkedText(content = biography) { url -> viewModelScope.launch { events.send { it.openUrl(url) } } }
+            },
             links = profile.links.map { link ->
                 ProfileLinkUiState(
                     name = link.name,
