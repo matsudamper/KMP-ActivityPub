@@ -114,6 +114,8 @@ class QueuedBlockDeliveryTest {
 
         override suspend fun refresh(keyId: String): PublicKeyLookup = PublicKeyLookup.Unavailable(RemoteFetchFailure.NotHttps(keyId))
 
+        override suspend fun findFreshActor(actorId: String): RemoteActorLookup = findActor(actorId)
+
         override fun close() = Unit
     }
 
