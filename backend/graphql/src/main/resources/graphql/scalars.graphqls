@@ -26,6 +26,9 @@ scalar NotificationGroupId
 "諦めた配信の識別子"
 scalar FailedDeliveryId
 
+"投稿者が消した、他のサーバーの投稿の識別子"
+scalar DeletedRemoteNoteId
+
 "このサーバーで置いたカスタム絵文字の識別子"
 scalar CustomEmojiId
 

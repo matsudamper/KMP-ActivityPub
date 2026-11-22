@@ -10,6 +10,7 @@ import net.matsudamper.kmp.activitypub.imagestorage.s3.StsCredentialProvider
 import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.ActorBlockService
 import net.matsudamper.kmp.activitypub.logic.BlockLists
+import net.matsudamper.kmp.activitypub.logic.DeletedRemoteNoteService
 import net.matsudamper.kmp.activitypub.logic.DeliveryTargetLimitService
 import net.matsudamper.kmp.activitypub.logic.FailedDeliveryService
 import net.matsudamper.kmp.activitypub.logic.FollowListService
@@ -75,6 +76,7 @@ class AppDependencies(
         events = accountEvents,
     )
     val failedDeliveryService: FailedDeliveryService = FailedDeliveryService(repository = repositories.failedDeliveryRepository)
+    val deletedRemoteNoteService: DeletedRemoteNoteService = DeletedRemoteNoteService(repository = repositories.deletedRemoteNoteRepository)
     val unknownObjectTypeService: UnknownObjectTypeService = UnknownObjectTypeService(repository = repositories.unknownObjectTypeRepository)
     val deliveryTargetLimitService: DeliveryTargetLimitService = DeliveryTargetLimitService(
         maxPerHost = MAX_DELIVERY_TARGETS_PER_HOST,

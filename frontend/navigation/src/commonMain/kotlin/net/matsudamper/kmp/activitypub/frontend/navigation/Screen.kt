@@ -140,6 +140,14 @@ sealed interface Screen : NavKey {
     }
 
     @Serializable
+    data object DeletedRemoteNotes : Screen {
+        override val pathPattern: PathPattern get() = PathPattern("/admin/deleted-remote-notes")
+        override val pathParameters: Map<String, String> get() = mapOf()
+        override val parentScreen: Screen get() = Admin
+        override val loginRequired: Boolean get() = true
+    }
+
+    @Serializable
     data object DeliveryTargetLimit : Screen {
         override val pathPattern: PathPattern get() = PathPattern("/admin/delivery-target-limit")
         override val pathParameters: Map<String, String> get() = mapOf()
@@ -374,6 +382,7 @@ sealed interface Screen : NavKey {
                 FailedDeliveries.pathPattern to { _ -> FailedDeliveries },
                 UnknownObjectTypes.pathPattern to { _ -> UnknownObjectTypes },
                 DeliveryTargetLimit.pathPattern to { _ -> DeliveryTargetLimit },
+                DeletedRemoteNotes.pathPattern to { _ -> DeletedRemoteNotes },
                 FailedDelivery.PATH_PATTERN to { parameters ->
                     FailedDelivery(id = parameters.getValue(FailedDelivery.ID_PARAMETER))
                 },

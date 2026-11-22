@@ -8,6 +8,8 @@ import net.matsudamper.kmp.activitypub.repository.AccountProfileDetail
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.ActorListPosition
 import net.matsudamper.kmp.activitypub.repository.CustomEmojiRepository
+import net.matsudamper.kmp.activitypub.repository.DeletedRemoteNote
+import net.matsudamper.kmp.activitypub.repository.DeletedRemoteNoteRepository
 import net.matsudamper.kmp.activitypub.repository.FailedDelivery
 import net.matsudamper.kmp.activitypub.repository.FailedDeliveryRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingGroup
@@ -166,6 +168,13 @@ internal class FakeRepositories : Repositories {
         override fun page(beforeId: Long?, limit: Int): List<FailedDelivery> = listOf()
 
         override fun find(id: Long): FailedDelivery? = null
+    }
+    override val deletedRemoteNoteRepository: DeletedRemoteNoteRepository = object : DeletedRemoteNoteRepository {
+        override fun page(beforeId: Long?, limit: Int): List<DeletedRemoteNote> = listOf()
+
+        override fun purge(id: Long): Boolean = false
+
+        override fun purgeAll(): Int = 0
     }
     override val unknownObjectTypeRepository: UnknownObjectTypeRepository = object : UnknownObjectTypeRepository {
         override fun record(typeNames: List<String>, sourceUrl: String, seenAt: Instant) = Unit

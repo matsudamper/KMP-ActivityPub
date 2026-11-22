@@ -13,6 +13,7 @@ interface Repositories : AutoCloseable {
     val followerRepository: FollowerRepository
     val deliveryQueueRepository: DeliveryQueueRepository
     val failedDeliveryRepository: FailedDeliveryRepository
+    val deletedRemoteNoteRepository: DeletedRemoteNoteRepository
     val unknownObjectTypeRepository: UnknownObjectTypeRepository
     val noteRepository: NoteRepository
     val noteCountRepository: NoteCountRepository

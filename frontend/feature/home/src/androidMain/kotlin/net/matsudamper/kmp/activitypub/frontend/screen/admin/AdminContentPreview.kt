@@ -47,6 +47,8 @@ private object AndroidPreviewAdminListener : AdminScreenUiState.Listener {
     override fun onClickUnknownObjectTypes() = Unit
 
     override fun onClickDeliveryTargetLimit() = Unit
+
+    override fun onClickDeletedRemoteNotes() = Unit
 }
 
 private object AndroidPreviewRemoteProfileRefreshListener : AdminScreenUiState.RemoteProfileRefreshListener {

@@ -41,5 +41,7 @@ data class AdminScreenUiState(
         fun onClickUnknownObjectTypes()
 
         fun onClickDeliveryTargetLimit()
+
+        fun onClickDeletedRemoteNotes()
     }
 }
