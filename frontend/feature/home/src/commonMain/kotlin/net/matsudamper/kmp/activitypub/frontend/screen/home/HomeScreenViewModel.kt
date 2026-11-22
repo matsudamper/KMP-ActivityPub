@@ -91,6 +91,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemReplyLabel
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.createProfileMedia
 import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
+import net.matsudamper.kmp.activitypub.frontend.screen.createUrlLinkedText
 import net.matsudamper.kmp.activitypub.frontend.screen.decideLikeTap
 import net.matsudamper.kmp.activitypub.frontend.screen.decidePickedReaction
 import net.matsudamper.kmp.activitypub.frontend.screen.decideStampTap
@@ -1565,7 +1566,9 @@ internal class HomeScreenViewModel(
                 iconUrl = profile.profile.iconUrl,
                 displayName = profile.profile.displayName ?: profile.profile.username,
                 acct = "@${profile.profile.username}",
-                summary = profile.profile.summary,
+                summary = profile.profile.summary?.let { summary ->
+                    createUrlLinkedText(content = summary) { url -> viewModelScope.launch { events.send { it.openUrl(url) } } }
+                },
                 links = profile.profile.links.map { link ->
                     ProfileLinkUiState(
                         name = link.name,
@@ -1634,9 +1637,13 @@ internal class HomeScreenViewModel(
                             quote = createPostItemQuote(
                                 hasQuoteTarget = post.hasQuoteTarget,
                                 load = viewModelState.quotes[post.postId],
+                                sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
+                                blurToggledImageUrls = viewModelState.imageBlur.toggledImageUrls,
                                 onOpenPostDetail = ::navigateToPostDetail,
                                 onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                                 onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
+                                onOpenImage = { urls, index -> viewModelScope.launch { events.send { it.navigateToImage(urls, index) } } },
+                                onToggleImageBlur = { imageUrls, toggled -> toggleImageBlur(imageUrls, toggled) },
                             ),
                             sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
                             translation = viewModelState.translation,
@@ -1817,9 +1824,13 @@ internal class HomeScreenViewModel(
         createPostItemQuote(
             hasQuoteTarget = post.hasQuoteTarget,
             load = viewModelState.quotes[post.id],
+            sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
+            blurToggledImageUrls = viewModelState.imageBlur.toggledImageUrls,
             onOpenPostDetail = ::navigateToPostDetail,
             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
             onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
+            onOpenImage = { urls, index -> viewModelScope.launch { events.send { it.navigateToImage(urls, index) } } },
+            onToggleImageBlur = { imageUrls, toggled -> toggleImageBlur(imageUrls, toggled) },
         )
 
     private fun createTimelineColumns(viewModelState: ViewModelState, feeds: Map<TimelineSource, TimelineFeeds.Feed>): List<HomeScreenUiState.TimelineColumn> {

@@ -478,7 +478,14 @@ private fun ProfileHeader(
             FollowMenu(uiState = followMenu)
         }
         if (profile.biography != null) {
-            Text(text = profile.biography, style = MaterialTheme.typography.bodyMedium)
+            EmojiText(
+                text = profile.biography,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.Unspecified,
+                fontWeight = null,
+                maxLines = Int.MAX_VALUE,
+                overflow = TextOverflow.Clip,
+            )
         }
         if (profile.links.isNotEmpty()) {
             ProfileLinks(links = profile.links, modifier = Modifier.fillMaxWidth())

@@ -707,12 +707,30 @@ internal class PostScreenViewModel(
             },
             quote = viewModelState.quote?.let { load ->
                 // 書いている途中の本文を残すため、引用先の中身へは移らない
-                createQuote(load = load, onOpenPostDetail = null, onOpenUrl = {}, onOpenProfile = {})
+                createQuote(
+                    load = load,
+                    sensitiveImagesBlurred = true,
+                    blurToggledImageUrls = setOf(),
+                    onOpenPostDetail = null,
+                    onOpenUrl = {},
+                    onOpenProfile = {},
+                    onOpenImage = { _, _ -> },
+                    onToggleImageBlur = { _, _ -> },
+                )
             },
             replyTarget = viewModelState.replyTarget?.let { replyTarget ->
                 PostScreenUiState.ReplyTarget(
                     // 書いている途中の本文を残すため、返信先の中身へは移らない
-                    post = createQuote(load = replyTarget.load, onOpenPostDetail = null, onOpenUrl = {}, onOpenProfile = {}),
+                    post = createQuote(
+                        load = replyTarget.load,
+                        sensitiveImagesBlurred = true,
+                        blurToggledImageUrls = setOf(),
+                        onOpenPostDetail = null,
+                        onOpenUrl = {},
+                        onOpenProfile = {},
+                        onOpenImage = { _, _ -> },
+                        onToggleImageBlur = { _, _ -> },
+                    ),
                     removeButtonEnabled = viewModelState.submitting.not(),
                     listener = replyTargetListener,
                 )

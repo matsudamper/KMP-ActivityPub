@@ -121,6 +121,7 @@ internal fun ProfileContentPager(
                 ProfileContentTabRow(
                     tabs = tabs,
                     selectedTab = tabs.getOrElse(pagerState.currentPage) { tabs.first() },
+                    pagerState = pagerState,
                     onClickTab = onSelectTab,
                 )
                 val currentGridDragged by state.gridState(tabs.getOrElse(pagerState.currentPage) { tabs.first() })

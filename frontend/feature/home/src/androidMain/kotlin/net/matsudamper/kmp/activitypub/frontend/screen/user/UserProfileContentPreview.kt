@@ -20,6 +20,7 @@ import coil3.compose.LocalAsyncImagePreviewHandler
 import net.matsudamper.kmp.activitypub.frontend.screen.UserProfileDialogFrame
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostBodyText
 import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
+import net.matsudamper.kmp.activitypub.frontend.screen.createUrlLinkedText
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinkUiState
@@ -43,7 +44,7 @@ private fun UserProfileContentPreview() {
                         iconUrl = null,
                         headerUrl = "https://example.social/header.png",
                         displayName = createTextWithEmojis(text = "Alice", emojis = listOf()),
-                        biography = "Kotlin と写真が好きです。\n日々のことを投稿しています。",
+                        biography = createUrlLinkedText(content = "Kotlin と写真が好きです。\n日々のことを投稿しています。https://blog.example/alice", onOpenUrl = {}),
                         links = listOf(),
                         followMenu = previewFollowMenu(destinationName = null),
                         tabs = listOf(ProfileContentTab.Posts, ProfileContentTab.Media, ProfileContentTab.Likes),
@@ -453,7 +454,7 @@ private val LocalUserContent = UserProfileScreenUiState.Content.Loaded(
     iconUrl = null,
     headerUrl = null,
     displayName = createTextWithEmojis(text = "Bob", emojis = listOf()),
-    biography = "ローカルのユーザーです。",
+    biography = createUrlLinkedText(content = "ローカルのユーザーです。", onOpenUrl = {}),
     links = listOf(
         ProfileLinkUiState(name = "GitHub", url = "https://github.com/bob", listener = AndroidPreviewProfileLinkListener),
         ProfileLinkUiState(name = "Blog", url = "https://blog.example/bob/very/long/path/to/the/article", listener = AndroidPreviewProfileLinkListener),

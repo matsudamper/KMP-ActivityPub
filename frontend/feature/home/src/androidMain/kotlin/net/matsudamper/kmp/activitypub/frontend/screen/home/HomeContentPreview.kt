@@ -23,6 +23,7 @@ import coil3.compose.LocalAsyncImagePreviewHandler
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserCustomEmoji
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostBodyText
 import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
+import net.matsudamper.kmp.activitypub.frontend.screen.createUrlLinkedText
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostContent
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostNavigationIcon
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreenUiState
@@ -649,7 +650,7 @@ private fun HomeUserContentPreview() {
                     iconUrl = "https://example.com/icon.png",
                     displayName = "ユーザー1",
                     acct = "@user1",
-                    summary = "Kotlin で ActivityPub サーバーを作っています。",
+                    summary = createUrlLinkedText(content = "Kotlin で ActivityPub サーバーを作っています。https://github.com/alice", onOpenUrl = {}),
                     links = listOf(
                         ProfileLinkUiState(name = "GitHub", url = "https://github.com/user1", listener = AndroidPreviewProfileLinkListener),
                     ),
@@ -747,7 +748,7 @@ private fun HomeUserMediaEmptyContentPreview() {
                     iconUrl = "https://example.com/icon.png",
                     displayName = "ユーザー1",
                     acct = "@user1",
-                    summary = "Kotlin で ActivityPub サーバーを作っています。",
+                    summary = createUrlLinkedText(content = "Kotlin で ActivityPub サーバーを作っています。https://github.com/alice", onOpenUrl = {}),
                     links = listOf(
                         ProfileLinkUiState(name = "GitHub", url = "https://github.com/user1", listener = AndroidPreviewProfileLinkListener),
                     ),

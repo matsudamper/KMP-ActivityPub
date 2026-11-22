@@ -111,6 +111,7 @@ private fun PostDetailContentQuotePreview() = PostDetailQuotePreview(
         displayName = createTextWithEmojis(text = "Bob", emojis = listOf()),
         acct = "@bob@remote.example",
         body = createPostBodyText(content = "引用される投稿です", mentions = listOf(), emojis = listOf(), onOpenUrl = {}, onOpenProfile = {}),
+        images = listOf(previewImage(0), previewImage(1)),
         listener = AndroidPreviewQuoteListener,
     ),
 )

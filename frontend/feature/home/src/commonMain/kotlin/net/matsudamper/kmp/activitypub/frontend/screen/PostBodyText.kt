@@ -48,6 +48,20 @@ internal fun createPostBodyText(
     emojis = emojis.toInlineEmojis(),
 )
 
+/**
+ * プロフィールの自己紹介文など、メンションもカスタム絵文字も持たない文字列の URL だけを押せるようにする
+ */
+internal fun createUrlLinkedText(
+    content: String,
+    onOpenUrl: (url: String) -> Unit,
+): TextWithEmojis = createPostBodyText(
+    content = content,
+    mentions = listOf(),
+    emojis = listOf(),
+    onOpenUrl = onOpenUrl,
+    onOpenProfile = {},
+)
+
 private class BodyLink(
     val range: IntRange,
     val onClick: () -> Unit,

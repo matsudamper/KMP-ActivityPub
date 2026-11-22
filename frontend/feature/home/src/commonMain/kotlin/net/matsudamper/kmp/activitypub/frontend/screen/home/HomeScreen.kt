@@ -52,7 +52,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabPosition
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -105,7 +104,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.zIndex
 import kotlin.math.abs
 import kotlin.math.ceil
@@ -147,7 +145,9 @@ import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
 import net.matsudamper.kmp.activitypub.frontend.ui.TimelineItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.URL_COPIED_MESSAGE
 import net.matsudamper.kmp.activitypub.frontend.ui.contentType
+import net.matsudamper.kmp.activitypub.frontend.ui.fixedTabRowPagerIndicatorModifier
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
+import net.matsudamper.kmp.activitypub.frontend.ui.pagerIndicatorPosition
 import net.matsudamper.kmp.activitypub.frontend.ui.rememberProfileContentPagerState
 import net.matsudamper.kmp.activitypub.frontend.ui.rememberUrlSharer
 import org.koin.compose.viewmodel.koinViewModel
@@ -558,6 +558,7 @@ private fun TimelineTabsContent(
                                     tabPositions = tabPositions,
                                     currentPage = pagerState.currentPage,
                                     currentPageOffsetFraction = pagerState.currentPageOffsetFraction,
+                                    matchContentWidth = true,
                                 )
                                 val indicatorWidth = indicatorPosition.width.roundToPx()
                                 val placeable = measurable.measure(
@@ -747,32 +748,6 @@ private class FlingVelocityKeepingPageNestedScrollConnection(
         // ページを動かしたので、子の列には払った速さを渡さない
         return available
     }
-}
-
-private data class TabIndicatorPosition(
-    val left: Dp,
-    val width: Dp,
-)
-
-/**
- * スワイプ中のページのずれに合わせて、今のタブと向かう先のタブの間に下線を置く
- */
-private fun pagerIndicatorPosition(
-    tabPositions: List<TabPosition>,
-    currentPage: Int,
-    currentPageOffsetFraction: Float,
-): TabIndicatorPosition {
-    val currentTab = tabPositions.getOrNull(currentPage) ?: return TabIndicatorPosition(left = 0.dp, width = 0.dp)
-    val targetPage = if (currentPageOffsetFraction > 0f) currentPage + 1 else currentPage - 1
-    val targetTab = tabPositions.getOrNull(targetPage) ?: currentTab
-    val fraction = abs(currentPageOffsetFraction)
-    val width = lerp(currentTab.contentWidth, targetTab.contentWidth, fraction)
-    val center = lerp(
-        currentTab.left + currentTab.width / 2,
-        targetTab.left + targetTab.width / 2,
-        fraction,
-    )
-    return TabIndicatorPosition(left = center - width / 2, width = width)
 }
 
 @Composable
@@ -1002,7 +977,7 @@ internal fun SearchTabContent(
                     }
                 }
         }
-        SearchTargetTabRow(targets = search.targets, selectedTabIndex = pagerState.currentPage)
+        SearchTargetTabRow(targets = search.targets, pagerState = pagerState)
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.weight(1f),
@@ -1098,11 +1073,16 @@ private fun SearchResultContent(
 @Composable
 private fun SearchTargetTabRow(
     targets: List<HomeScreenUiState.SearchTarget>,
-    selectedTabIndex: Int,
+    pagerState: PagerState,
 ) {
     SecondaryTabRow(
-        selectedTabIndex = selectedTabIndex,
+        selectedTabIndex = pagerState.currentPage,
         modifier = Modifier.fillMaxWidth(),
+        indicator = {
+            TabRowDefaults.SecondaryIndicator(
+                modifier = fixedTabRowPagerIndicatorModifier(pagerState = pagerState, matchContentWidth = false),
+            )
+        },
     ) {
         targets.forEach { target ->
             Tab(
@@ -1331,7 +1311,14 @@ private fun UserProfileHeader(
         }
         val summary = profile.summary
         if (summary != null) {
-            Text(text = summary, style = MaterialTheme.typography.bodyMedium)
+            EmojiText(
+                text = summary,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.Unspecified,
+                fontWeight = null,
+                maxLines = Int.MAX_VALUE,
+                overflow = TextOverflow.Clip,
+            )
         }
         if (profile.links.isNotEmpty()) {
             ProfileLinks(links = profile.links, modifier = Modifier.fillMaxWidth())
