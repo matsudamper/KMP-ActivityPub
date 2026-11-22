@@ -1311,7 +1311,14 @@ private fun UserProfileHeader(
         }
         val summary = profile.summary
         if (summary != null) {
-            Text(text = summary, style = MaterialTheme.typography.bodyMedium)
+            EmojiText(
+                text = summary,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.Unspecified,
+                fontWeight = null,
+                maxLines = Int.MAX_VALUE,
+                overflow = TextOverflow.Clip,
+            )
         }
         if (profile.links.isNotEmpty()) {
             ProfileLinks(links = profile.links, modifier = Modifier.fillMaxWidth())

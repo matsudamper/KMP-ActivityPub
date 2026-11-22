@@ -280,7 +280,7 @@ data class HomeScreenUiState(
             val iconUrl: String?,
             val displayName: String,
             val acct: String,
-            val summary: String?,
+            val summary: TextWithEmojis?,
             val links: List<ProfileLinkUiState>,
             val followingCount: String,
             val followersCount: String,
