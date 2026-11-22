@@ -54,7 +54,7 @@ data class UserProfileScreenUiState(
             val iconUrl: String?,
             val headerUrl: String?,
             val displayName: TextWithEmojis,
-            val biography: String?,
+            val biography: TextWithEmojis?,
             val links: List<ProfileLinkUiState>,
             val followMenu: FollowMenuUiState?,
             val tabs: List<ProfileContentTab>,

@@ -91,6 +91,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemReplyLabel
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.createProfileMedia
 import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
+import net.matsudamper.kmp.activitypub.frontend.screen.createUrlLinkedText
 import net.matsudamper.kmp.activitypub.frontend.screen.decideLikeTap
 import net.matsudamper.kmp.activitypub.frontend.screen.decidePickedReaction
 import net.matsudamper.kmp.activitypub.frontend.screen.decideStampTap
@@ -1565,7 +1566,9 @@ internal class HomeScreenViewModel(
                 iconUrl = profile.profile.iconUrl,
                 displayName = profile.profile.displayName ?: profile.profile.username,
                 acct = "@${profile.profile.username}",
-                summary = profile.profile.summary,
+                summary = profile.profile.summary?.let { summary ->
+                    createUrlLinkedText(content = summary) { url -> viewModelScope.launch { events.send { it.openUrl(url) } } }
+                },
                 links = profile.profile.links.map { link ->
                     ProfileLinkUiState(
                         name = link.name,
