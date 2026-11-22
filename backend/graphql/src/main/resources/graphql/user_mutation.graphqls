@@ -85,6 +85,10 @@ type UserMutation {
     uploadCustomEmoji(shortcode: String!, image: Upload!): UploadCustomEmojiResult! @lazy
     "ログインしているアカウントが置いたカスタム絵文字を消す。既に付けたリアクションは残る"
     deleteCustomEmoji(id: CustomEmojiId!): DeleteCustomEmojiResult! @lazy
+    "投稿者が消した他のサーバーの投稿を、付いていたいいね・ブースト・通知ごと保存から消す。タイムラインにも出なくなる。管理者だけ"
+    purgeDeletedRemoteNote(id: DeletedRemoteNoteId!): PurgeDeletedRemoteNoteResult! @lazy
+    "投稿者が消した他のサーバーの投稿を全て purgeDeletedRemoteNote と同じように消す。管理者だけ"
+    purgeAllDeletedRemoteNotes: PurgeAllDeletedRemoteNotesResult! @lazy
     """
     ログインしているアカウントで、このサーバーの投稿か、他のサーバーの公開の投稿をブーストするか外す。公開範囲に制限のある投稿はブーストできない。フォロワーと投稿者への Announce か Undo を積む。
     postId は TimelinePost.reactionPostId か ProfilePost.reactionPostId。既に望んだ状態なら何も積まずに成功する。
@@ -458,6 +462,30 @@ enum UploadCustomEmojiFailure {
 type DeleteCustomEmojiResult {
     "消せたら null"
     failure: DeleteCustomEmojiFailure
+}
+
+type PurgeDeletedRemoteNoteResult {
+    "消せたら null"
+    failure: PurgeDeletedRemoteNoteFailure
+}
+
+enum PurgeDeletedRemoteNoteFailure {
+    NOT_LOGGED_IN
+    NOT_ADMIN
+    "無いか、消された投稿でない"
+    NOT_FOUND
+}
+
+type PurgeAllDeletedRemoteNotesResult {
+    "消した数。失敗したら null"
+    purgedCount: Int
+    "消せたら null"
+    failure: PurgeAllDeletedRemoteNotesFailure
+}
+
+enum PurgeAllDeletedRemoteNotesFailure {
+    NOT_LOGGED_IN
+    NOT_ADMIN
 }
 
 enum DeleteCustomEmojiFailure {

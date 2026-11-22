@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.frontend.logic.user
 
+import net.matsudamper.kmp.activitypub.frontend.graphql.DeletedRemoteNotesQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FailedDeliveriesQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowerUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowingUsersQuery
@@ -625,6 +626,40 @@ fun UnknownObjectTypesQuery.Data.withNextPage(page: UnknownObjectTypesQuery.Data
             unknownObjectTypes = beforeUserInfo.unknownObjectTypes.copy(
                 types = beforeUserInfo.unknownObjectTypes.types + pageTypes.types,
                 nextCursor = pageTypes.nextCursor,
+            ),
+        ),
+    )
+}
+
+fun DeletedRemoteNotesQuery.Data.toUserDeletedRemoteNotesResult(): UserDeletedRemoteNotesResult {
+    val page = userInfo?.deletedRemoteNotes ?: return UserDeletedRemoteNotesResult.NotLoggedIn
+    return UserDeletedRemoteNotesResult.Success(
+        notes = page.notes.map {
+            UserDeletedRemoteNote(
+                id = it.id,
+                objectUri = it.objectUri,
+                actorUri = it.actorUri,
+                actorName = it.actorName,
+                contentText = it.contentText,
+                publishedAt = it.publishedAt,
+                deletedAt = it.deletedAt,
+            )
+        },
+        nextCursor = page.nextCursor,
+    )
+}
+
+/**
+ * 続きのページを後ろにつなぐ。どちらかが読めていなければ null
+ */
+fun DeletedRemoteNotesQuery.Data.withNextPage(page: DeletedRemoteNotesQuery.Data): DeletedRemoteNotesQuery.Data? {
+    val beforeUserInfo = userInfo ?: return null
+    val pageNotes = page.userInfo?.deletedRemoteNotes ?: return null
+    return copy(
+        userInfo = beforeUserInfo.copy(
+            deletedRemoteNotes = beforeUserInfo.deletedRemoteNotes.copy(
+                notes = beforeUserInfo.deletedRemoteNotes.notes + pageNotes.notes,
+                nextCursor = pageNotes.nextCursor,
             ),
         ),
     )

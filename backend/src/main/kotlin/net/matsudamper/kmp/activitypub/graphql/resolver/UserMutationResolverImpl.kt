@@ -26,6 +26,10 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasswordResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlEditNoteFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlEditNoteResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlPostNotePollInput
+import net.matsudamper.kmp.activitypub.graphql.model.QlPurgeAllDeletedRemoteNotesFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlPurgeAllDeletedRemoteNotesResult
+import net.matsudamper.kmp.activitypub.graphql.model.QlPurgeDeletedRemoteNoteFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlPurgeDeletedRemoteNoteResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlReactionInput
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyQuery
@@ -65,6 +69,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlUserPostNoteFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserPostNoteResult
 import net.matsudamper.kmp.activitypub.graphql.model.UserMutationResolver
 import net.matsudamper.kmp.activitypub.graphql.otelFuture
+import net.matsudamper.kmp.activitypub.graphql.otelSupplyAsync
 import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.BlockActorResult
 import net.matsudamper.kmp.activitypub.logic.BlockServerResult
@@ -93,6 +98,7 @@ import net.matsudamper.kmp.activitypub.logic.UploadNoteImageResult
 import net.matsudamper.kmp.activitypub.repository.PasskeyDeleteResult
 import net.matsudamper.kmp.activitypub.repository.ProfileLink
 import net.matsudamper.kmp.activitypub.shared.CustomEmojiId
+import net.matsudamper.kmp.activitypub.shared.DeletedRemoteNoteId
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
@@ -494,6 +500,40 @@ class UserMutationResolverImpl : UserMutationResolver {
     ): CompletionStage<DataFetcherResult<QlDeleteCustomEmojiResult>> {
         val result = QlDeleteCustomEmojiResult(failure = deleteCustomEmoji(id = id, env = env))
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
+    }
+
+    override fun purgeDeletedRemoteNote(
+        userMutation: QlUserMutation,
+        id: DeletedRemoteNoteId,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlPurgeDeletedRemoteNoteResult>> {
+        val diContainer = GraphQlEngine.diContainer(env)
+        val accountId = GraphQlEngine.graphQlContext(env).userAccountId()
+        return otelSupplyAsync {
+            val failure = when {
+                accountId == null -> QlPurgeDeletedRemoteNoteFailure.NOT_LOGGED_IN
+                accountId !in diContainer.adminAccountIds -> QlPurgeDeletedRemoteNoteFailure.NOT_ADMIN
+                diContainer.deletedRemoteNoteService.purge(id) -> null
+                else -> QlPurgeDeletedRemoteNoteFailure.NOT_FOUND
+            }
+            DataFetcherResult.Builder(QlPurgeDeletedRemoteNoteResult(failure = failure)).build()
+        }
+    }
+
+    override fun purgeAllDeletedRemoteNotes(
+        userMutation: QlUserMutation,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlPurgeAllDeletedRemoteNotesResult>> {
+        val diContainer = GraphQlEngine.diContainer(env)
+        val accountId = GraphQlEngine.graphQlContext(env).userAccountId()
+        return otelSupplyAsync {
+            val result = when {
+                accountId == null -> QlPurgeAllDeletedRemoteNotesResult(purgedCount = null, failure = QlPurgeAllDeletedRemoteNotesFailure.NOT_LOGGED_IN)
+                accountId !in diContainer.adminAccountIds -> QlPurgeAllDeletedRemoteNotesResult(purgedCount = null, failure = QlPurgeAllDeletedRemoteNotesFailure.NOT_ADMIN)
+                else -> QlPurgeAllDeletedRemoteNotesResult(purgedCount = diContainer.deletedRemoteNoteService.purgeAll(), failure = null)
+            }
+            DataFetcherResult.Builder(result).build()
+        }
     }
 
     override fun setBoosted(

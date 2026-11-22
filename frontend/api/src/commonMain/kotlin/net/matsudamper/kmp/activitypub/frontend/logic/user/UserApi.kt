@@ -43,6 +43,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.CreateFollowingGroupMuta
 import net.matsudamper.kmp.activitypub.frontend.graphql.CustomEmojisQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.DeleteCustomEmojiMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.DeleteNoteMutation
+import net.matsudamper.kmp.activitypub.frontend.graphql.DeletedRemoteNotesQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.DeliveryTargetLimitQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.EditNoteMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.EditableNoteBodyQuery
@@ -63,6 +64,8 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.PostCountsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.PostDetailScreenQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.PostRepliesQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.PostRevisionsQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.PurgeAllDeletedRemoteNotesMutation
+import net.matsudamper.kmp.activitypub.frontend.graphql.PurgeDeletedRemoteNoteMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.QuoteTargetQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.RemoteProfileRefreshSubscription
 import net.matsudamper.kmp.activitypub.frontend.graphql.RenameFollowingGroupMutation
@@ -97,6 +100,8 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.type.DeleteNoteFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.EditNoteFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.PostNotePollInput
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.ProfileLinkInput
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.PurgeAllDeletedRemoteNotesFailure
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.PurgeDeletedRemoteNoteFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.ReactionInput
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.RenameFollowingGroupFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.SetBoostedFailure
@@ -837,6 +842,58 @@ class UserApi(
     }
 
     /**
+     * 投稿者が消した他のサーバーの投稿の一覧。受け取った新しい順
+     */
+    fun deletedRemoteNotesPaging(): CursorPagingModel<DeletedRemoteNotesQuery.Data> {
+        return CursorPagingModel(
+            clients = clients,
+            firstQuery = DeletedRemoteNotesQuery(after = Optional.present(null), limit = DELETED_REMOTE_NOTES_PAGE_SIZE),
+            queryAfter = { cursor -> DeletedRemoteNotesQuery(after = Optional.present(cursor), limit = DELETED_REMOTE_NOTES_PAGE_SIZE) },
+            nextCursorOf = { it.userInfo?.deletedRemoteNotes?.nextCursor },
+            appendPage = { before, page -> before.withNextPage(page) },
+        )
+    }
+
+    /**
+     * @param id [UserDeletedRemoteNote.id]
+     * @return 失敗したときに見せる文言。消せたら null
+     */
+    suspend fun purgeDeletedRemoteNote(id: String): String? {
+        val client = clients.client.value ?: return "接続先が未設定"
+        val response = client.mutation(PurgeDeletedRemoteNoteMutation(id = id)).execute()
+        if (response.exception != null || response.hasErrors()) return response.failureMessage()
+        val result = response.data?.user?.purgeDeletedRemoteNote ?: return response.failureMessage()
+        return when (result.failure) {
+            null -> null
+            PurgeDeletedRemoteNoteFailure.NOT_LOGGED_IN -> "ログインしていません"
+            PurgeDeletedRemoteNoteFailure.NOT_ADMIN -> "管理者ではありません"
+            PurgeDeletedRemoteNoteFailure.NOT_FOUND -> "既に消えています"
+            PurgeDeletedRemoteNoteFailure.UNKNOWN__ -> "削除できませんでした"
+        }
+    }
+
+    suspend fun purgeAllDeletedRemoteNotes(): UserPurgeAllDeletedRemoteNotesResult {
+        val client = clients.client.value ?: return UserPurgeAllDeletedRemoteNotesResult.Failure("接続先が未設定")
+        val response = client.mutation(PurgeAllDeletedRemoteNotesMutation()).execute()
+        if (response.exception != null || response.hasErrors()) return UserPurgeAllDeletedRemoteNotesResult.Failure(response.failureMessage())
+        val result = response.data?.user?.purgeAllDeletedRemoteNotes ?: return UserPurgeAllDeletedRemoteNotesResult.Failure(response.failureMessage())
+        val purgedCount = result.purgedCount
+        return when (result.failure) {
+            null -> if (purgedCount == null) {
+                UserPurgeAllDeletedRemoteNotesResult.Failure("削除できませんでした")
+            } else {
+                UserPurgeAllDeletedRemoteNotesResult.Success(purgedCount)
+            }
+
+            PurgeAllDeletedRemoteNotesFailure.NOT_LOGGED_IN -> UserPurgeAllDeletedRemoteNotesResult.Failure("ログインしていません")
+
+            PurgeAllDeletedRemoteNotesFailure.NOT_ADMIN -> UserPurgeAllDeletedRemoteNotesResult.Failure("管理者ではありません")
+
+            PurgeAllDeletedRemoteNotesFailure.UNKNOWN__ -> UserPurgeAllDeletedRemoteNotesResult.Failure("削除できませんでした")
+        }
+    }
+
+    /**
      * @param id [UserFailedDelivery.id]
      */
     suspend fun failedDelivery(id: String): UserFailedDeliveryResult {
@@ -1496,6 +1553,7 @@ class UserApi(
         const val POST_REVISIONS_PAGE_SIZE = 20
         const val FAILED_DELIVERIES_PAGE_SIZE = 30
         const val UNKNOWN_OBJECT_TYPES_PAGE_SIZE = 30
+        const val DELETED_REMOTE_NOTES_PAGE_SIZE = 30
         const val ACCOUNT_EVENT_MAX_CONSECUTIVE_FAILURES = 5
 
         /**

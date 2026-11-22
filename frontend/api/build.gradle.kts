@@ -46,6 +46,7 @@ apollo {
         mapScalarToKotlinString("PostRevisionId")
         mapScalarToKotlinString("NotificationGroupId")
         mapScalarToKotlinString("FailedDeliveryId")
+        mapScalarToKotlinString("DeletedRemoteNoteId")
         mapScalarToUpload("Upload")
         plugin(libs.apollo.normalized.cache.compiler.plugin)
         pluginArgument("com.apollographql.cache.packageName", packageName.get())

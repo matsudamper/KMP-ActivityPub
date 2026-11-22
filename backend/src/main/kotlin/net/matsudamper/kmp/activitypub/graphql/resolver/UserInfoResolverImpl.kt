@@ -8,6 +8,8 @@ import graphql.schema.DataFetchingEnvironment
 import net.matsudamper.kmp.activitypub.graphql.GraphQlClientException
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
 import net.matsudamper.kmp.activitypub.graphql.model.QlBlockedAccount
+import net.matsudamper.kmp.activitypub.graphql.model.QlDeletedRemoteNote
+import net.matsudamper.kmp.activitypub.graphql.model.QlDeletedRemoteNotePage
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeliveryTargetHost
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeliveryTargetLimit
 import net.matsudamper.kmp.activitypub.graphql.model.QlFailedDelivery
@@ -22,14 +24,17 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlUnknownObjectTypePage
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserInfo
 import net.matsudamper.kmp.activitypub.graphql.model.UserInfoResolver
 import net.matsudamper.kmp.activitypub.graphql.otelSupplyAsync
+import net.matsudamper.kmp.activitypub.repository.DeletedRemoteNote
 import net.matsudamper.kmp.activitypub.repository.FailedDelivery
 import net.matsudamper.kmp.activitypub.repository.UnknownObjectType
+import net.matsudamper.kmp.activitypub.shared.DeletedRemoteNoteId
 import net.matsudamper.kmp.activitypub.shared.FailedDeliveryId
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 import net.matsudamper.kmp.activitypub.shared.PostRevisionId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import net.matsudamper.kmp.activitypub.shared.TimelinePostId
 import net.matsudamper.kmp.activitypub.timeline.PostRevisionCursor
+import org.jsoup.Jsoup
 
 class UserInfoResolverImpl : UserInfoResolver {
     override fun timeline(
@@ -206,6 +211,29 @@ class UserInfoResolverImpl : UserInfoResolver {
         }
     }
 
+    override fun deletedRemoteNotes(
+        userInfo: QlUserInfo,
+        after: String?,
+        limit: Int,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlDeletedRemoteNotePage>> {
+        requireAdmin(userInfo, env)
+        return otelSupplyAsync {
+            val page = GraphQlEngine.diContainer(env).deletedRemoteNoteService.page(after = after, limit = limit)
+            if (page == null) {
+                DataFetcherResult.Builder(QlDeletedRemoteNotePage(notes = listOf(), nextCursor = null))
+                    .error(GraphqlErrorBuilder.newError(env).message("after が読めない").build())
+                    .build()
+            } else {
+                val result = QlDeletedRemoteNotePage(
+                    notes = page.notes.map { it.toQlDeletedRemoteNote() },
+                    nextCursor = page.nextCursor,
+                )
+                DataFetcherResult.Builder(result).build()
+            }
+        }
+    }
+
     private fun requireAdmin(userInfo: QlUserInfo, env: DataFetchingEnvironment) {
         if (userInfo.id !in GraphQlEngine.diContainer(env).adminAccountIds) throw GraphQlClientException("管理者ではない")
     }
@@ -219,6 +247,16 @@ class UserInfoResolverImpl : UserInfoResolver {
         enqueuedAt = enqueuedAt.toString(),
         failedAt = failedAt?.toString(),
         lastError = lastError,
+    )
+
+    private fun DeletedRemoteNote.toQlDeletedRemoteNote(): QlDeletedRemoteNote = QlDeletedRemoteNote(
+        id = DeletedRemoteNoteId(id),
+        objectUri = objectUri,
+        actorUri = actorUri,
+        actorName = actorName,
+        contentText = Jsoup.parse(contentHtml).text(),
+        publishedAt = publishedAt.toString(),
+        deletedAt = deletedAt.toString(),
     )
 
     private fun UnknownObjectType.toQlUnknownObjectType(): QlUnknownObjectType = QlUnknownObjectType(

@@ -60,6 +60,12 @@ internal class AdminScreenViewModel(
                     events.send { it.navigateToDeliveryTargetLimit() }
                 }
             }
+
+            override fun onClickDeletedRemoteNotes() {
+                viewModelScope.launch {
+                    events.send { it.navigateToDeletedRemoteNotes() }
+                }
+            }
         }
 
     private val remoteProfileRefreshListener =
@@ -180,6 +186,8 @@ internal class AdminScreenViewModel(
         fun navigateToUnknownObjectTypes()
 
         fun navigateToDeliveryTargetLimit()
+
+        fun navigateToDeletedRemoteNotes()
 
         fun showMessage(message: String)
     }
