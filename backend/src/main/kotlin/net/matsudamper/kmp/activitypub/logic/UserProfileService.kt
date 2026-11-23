@@ -155,8 +155,17 @@ class UserProfileService(
             if (outboxPage == null) {
                 ProfilePostsResult.Unreachable
             } else {
+                val continuation = outboxPage.continuationAfter(cursor)
                 ProfilePostsResult.Found(
-                    mergedRemotePage(viewer, cursor.actorUri, outboxPage.withoutShownNotes(cursor), cursor.storedBefore?.toPosition(), cursor.pinnedObjectUris, cursor.shownAtBoundary),
+                    mergedRemotePage(
+                        viewer = viewer,
+                        actorUri = cursor.actorUri,
+                        outboxPage = continuation.page,
+                        storedBefore = cursor.storedBefore?.toPosition(),
+                        pinnedObjectUris = cursor.pinnedObjectUris,
+                        shownAtBoundary = cursor.shownAtBoundary,
+                        outboxPagesWithOnlyShownNotes = continuation.pagesWithOnlyShownNotes,
+                    ),
                 )
             }
         }
@@ -279,6 +288,7 @@ class UserProfileService(
                 storedBefore = null,
                 pinnedObjectUris = pinnedObjectUris,
                 shownAtBoundary = listOf(),
+                outboxPagesWithOnlyShownNotes = 0,
             )
         }
         page.copy(posts = withStored(viewer, featuredNotes).map { it.second.copy(pinned = true) } + page.posts)
@@ -287,19 +297,34 @@ class UserProfileService(
     /**
      * outbox を新しい順に並べ切らないサーバーがある。Misskey は古い方の端で、前のページより新しい投稿と前のページを指す next を返し、
      * 2 つのページを行き来する。そのまま返すと同じ投稿が終わり無く続くので、前のページまでに出した時刻より新しい投稿は外す。
-     * 外して何も残らなければ、それより先も出し済みの投稿を繰り返すだけなので、outbox は読み終えたものとして保存済みの投稿に移る
+     * 出し済みの投稿だけのページは途中にもあり得るので、すぐには止めない。[MAX_OUTBOX_PAGES_WITH_ONLY_SHOWN_NOTES] ページ続いたら、
+     * 行き来しているものとして outbox は読み終え、保存済みの投稿に移る
      */
-    private fun RemoteNotesPage.withoutShownNotes(cursor: ProfilePostCursor.Remote): RemoteNotesPage {
-        val shownDownTo = cursor.storedBefore ?: return this
+    private fun RemoteNotesPage.continuationAfter(cursor: ProfilePostCursor.Remote): OutboxContinuation {
+        val shownDownTo = cursor.storedBefore ?: return OutboxContinuation(page = this, pagesWithOnlyShownNotes = 0)
         val unshownNotes = notes.filter { note ->
             note.publishedAt.toEpochMilli() < shownDownTo.score && note.objectUri !in cursor.shownAtBoundary
         }
-        return if (notes.isNotEmpty() && unshownNotes.isEmpty()) {
-            RemoteNotesPage(notes = listOf(), next = null)
-        } else {
-            copy(notes = unshownNotes)
+        // 投稿の無いページ（ブーストだけのページなど）は、進んだとも出し済みとも言えないので数を変えない
+        val pagesWithOnlyShownNotes = when {
+            unshownNotes.isNotEmpty() -> 0
+            notes.isNotEmpty() -> cursor.outboxPagesWithOnlyShownNotes + 1
+            else -> cursor.outboxPagesWithOnlyShownNotes
         }
+        val circulating = pagesWithOnlyShownNotes >= MAX_OUTBOX_PAGES_WITH_ONLY_SHOWN_NOTES
+        return OutboxContinuation(
+            page = RemoteNotesPage(notes = unshownNotes, next = if (circulating) null else next),
+            pagesWithOnlyShownNotes = pagesWithOnlyShownNotes,
+        )
     }
+
+    /**
+     * @param pagesWithOnlyShownNotes 出し済みの投稿だけのページが、このページまで何ページ続いたか
+     */
+    private data class OutboxContinuation(
+        val page: RemoteNotesPage,
+        val pagesWithOnlyShownNotes: Int,
+    )
 
     /**
      * @return 読めなければ null
@@ -314,6 +339,7 @@ class UserProfileService(
      * @param storedBefore 保存済みの投稿をここより古い方から混ぜる。最初のページなら null
      * @param pinnedObjectUris 最初のページの先頭に固定した投稿として出した投稿。どのページでも一覧からは外す
      * @param shownAtBoundary 前のページで出した、前のページの境目と同じ時刻の投稿
+     * @param outboxPagesWithOnlyShownNotes 出し済みの投稿だけの outbox のページが、このページまで何ページ続いたか
      */
     private fun mergedRemotePage(
         viewer: AccountId,
@@ -322,6 +348,7 @@ class UserProfileService(
         storedBefore: TimelinePosition?,
         pinnedObjectUris: List<String>,
         shownAtBoundary: List<String>,
+        outboxPagesWithOnlyShownNotes: Int,
     ): ProfilePostPage {
         val outboxPosts = withStored(viewer, outboxPage.notes)
         val lowestScore = outboxPage.notes.minOfOrNull { it.publishedAt.toEpochMilli() }
@@ -357,6 +384,7 @@ class UserProfileService(
                     storedBefore = belowPage?.let { StoredTimelinePosition(it.score, it.member) },
                     pinnedObjectUris = pinnedObjectUris,
                     shownAtBoundary = (outboxPage.notes.filter { it.publishedAt.toEpochMilli() == lowestScore }.map { it.objectUri } + stillAtPreviousBoundary).distinct(),
+                    outboxPagesWithOnlyShownNotes = outboxPagesWithOnlyShownNotes,
                 )
 
                 olderThanOutbox.size == PROFILE_POST_LIMIT && lastOlder != null ->
@@ -553,6 +581,11 @@ class UserProfileService(
     private companion object {
         const val PROFILE_POST_LIMIT = 20
 
+        /**
+         * Misskey の行き来は 2 ページなので、往復して戻ってきたところで止まる数にする
+         */
+        const val MAX_OUTBOX_PAGES_WITH_ONLY_SHOWN_NOTES = 3
+
         val FEATURED_POSTS_TIMEOUT: Duration = 3.seconds
 
         val OUTBOX_TIMEOUT: Duration = 5.seconds
@@ -719,6 +752,7 @@ sealed interface ProfilePostCursor {
      *
      * @param pinnedObjectUris 最初のページの先頭に固定した投稿として出した投稿。続きにも同じ投稿を出さないよう持ち回る
      * @param shownAtBoundary 前のページの outbox の境目と同じ時刻で、前のページに出した投稿。同じ時刻の保存済みの投稿を次のページに回すので、重ならないよう外す
+     * @param outboxPagesWithOnlyShownNotes 出し済みの投稿だけの outbox のページが、ここまで何ページ続いたか
      */
     @Serializable
     @SerialName("remote")
@@ -728,6 +762,8 @@ sealed interface ProfilePostCursor {
         @SerialName("storedBefore") val storedBefore: StoredTimelinePosition?,
         @SerialName("pinnedObjectUris") val pinnedObjectUris: List<String>,
         @SerialName("shownAtBoundary") val shownAtBoundary: List<String>,
+        // 配った後に足した項目なので、足す前に配った続きも読めるよう既定を持たせる
+        @SerialName("outboxPagesWithOnlyShownNotes") val outboxPagesWithOnlyShownNotes: Int = 0,
     ) : ProfilePostCursor
 
     /**

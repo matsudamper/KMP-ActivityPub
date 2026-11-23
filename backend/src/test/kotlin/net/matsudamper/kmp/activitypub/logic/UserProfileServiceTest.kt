@@ -529,6 +529,24 @@ class UserProfileServiceTest {
     }
 
     @Test
+    fun outboxPageWithOnlyShownPostsDoesNotStopReadingLaterPages() = runBlocking {
+        val newest = remoteNote("<p>新しい</p>", "https://remote.example/notes/newest", publishedAt = Instant.ofEpochSecond(30))
+        val middle = remoteNote("<p>真ん中</p>", "https://remote.example/notes/middle", publishedAt = Instant.ofEpochSecond(20))
+        val oldest = remoteNote("<p>古い</p>", "https://remote.example/notes/oldest", publishedAt = Instant.ofEpochSecond(10))
+        outbox = { from ->
+            when (from?.pageId) {
+                null -> RemoteNotesPage(notes = listOf(newest, middle), next = OutboxPosition(pageId = "page-2", itemOffset = 0))
+                "page-2" -> RemoteNotesPage(notes = listOf(middle), next = OutboxPosition(pageId = "page-3", itemOffset = 0))
+                else -> RemoteNotesPage(notes = listOf(oldest), next = null)
+            }
+        }
+
+        val all = readAllProfilePosts().map { it.contentHtml }
+
+        assertEquals(listOf("<p>新しい</p>", "<p>真ん中</p>", "<p>古い</p>"), all)
+    }
+
+    @Test
     fun remotePostsContinuationNeedsLoginAndReportsUnreadableOutbox() = runBlocking {
         val cursor = ProfilePostCursor.Remote(
             actorUri = actorUri,
