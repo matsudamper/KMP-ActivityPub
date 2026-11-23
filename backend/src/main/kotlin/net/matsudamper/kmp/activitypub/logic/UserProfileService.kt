@@ -156,7 +156,7 @@ class UserProfileService(
                 ProfilePostsResult.Unreachable
             } else {
                 ProfilePostsResult.Found(
-                    mergedRemotePage(viewer, cursor.actorUri, outboxPage, cursor.storedBefore?.toPosition(), cursor.pinnedObjectUris, cursor.shownAtBoundary),
+                    mergedRemotePage(viewer, cursor.actorUri, outboxPage.withoutShownNotes(cursor), cursor.storedBefore?.toPosition(), cursor.pinnedObjectUris, cursor.shownAtBoundary),
                 )
             }
         }
@@ -282,6 +282,23 @@ class UserProfileService(
             )
         }
         page.copy(posts = withStored(viewer, featuredNotes).map { it.second.copy(pinned = true) } + page.posts)
+    }
+
+    /**
+     * outbox を新しい順に並べ切らないサーバーがある。Misskey は古い方の端で、前のページより新しい投稿と前のページを指す next を返し、
+     * 2 つのページを行き来する。そのまま返すと同じ投稿が終わり無く続くので、前のページまでに出した時刻より新しい投稿は外す。
+     * 外して何も残らなければ、それより先も出し済みの投稿を繰り返すだけなので、outbox は読み終えたものとして保存済みの投稿に移る
+     */
+    private fun RemoteNotesPage.withoutShownNotes(cursor: ProfilePostCursor.Remote): RemoteNotesPage {
+        val shownDownTo = cursor.storedBefore ?: return this
+        val unshownNotes = notes.filter { note ->
+            note.publishedAt.toEpochMilli() < shownDownTo.score && note.objectUri !in cursor.shownAtBoundary
+        }
+        return if (notes.isNotEmpty() && unshownNotes.isEmpty()) {
+            RemoteNotesPage(notes = listOf(), next = null)
+        } else {
+            copy(notes = unshownNotes)
+        }
     }
 
     /**
