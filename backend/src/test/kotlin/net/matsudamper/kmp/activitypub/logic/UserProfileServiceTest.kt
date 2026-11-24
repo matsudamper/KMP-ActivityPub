@@ -514,7 +514,7 @@ class UserProfileServiceTest {
         val newest = remoteNote("<p>新しい</p>", "https://remote.example/notes/newest", publishedAt = Instant.ofEpochSecond(30))
         val middle = remoteNote("<p>真ん中</p>", "https://remote.example/notes/middle", publishedAt = Instant.ofEpochSecond(20))
         val oldest = remoteNote("<p>古い</p>", "https://remote.example/notes/oldest", publishedAt = Instant.ofEpochSecond(10))
-        // Misskey の古い方の端のように、前のページより新しい投稿を混ぜ、2 つのページで互いを next に指す
+        // 前のページより新しい投稿を混ぜ、2 つのページで互いを next に指す
         outbox = { from ->
             when (from?.pageId) {
                 null -> RemoteNotesPage(notes = listOf(newest, middle), next = OutboxPosition(pageId = "page-a", itemOffset = 0))
