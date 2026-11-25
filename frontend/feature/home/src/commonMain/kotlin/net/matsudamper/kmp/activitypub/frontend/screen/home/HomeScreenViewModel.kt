@@ -1020,7 +1020,12 @@ internal class HomeScreenViewModel(
         timelineArrivalsJob = viewModelScope.launch {
             userApi.accountEventStream().collect { event ->
                 when (event) {
-                    AccountStreamEvent.Subscribing -> updateTimelineStreamConnection(TimelineStreamConnection.Receiving)
+                    AccountStreamEvent.Subscribing -> {
+                        val resubscribing = viewModelStateFlow.value.timelineStream.connection == TimelineStreamConnection.WaitingToReconnect
+                        updateTimelineStreamConnection(TimelineStreamConnection.Receiving)
+                        // 切れていた間の投稿は流れてこないので、つなぎ直したら読み直して埋める
+                        if (resubscribing) loadTimeline(TimelineLoadTrigger.Reconnect)
+                    }
 
                     is AccountStreamEvent.PostArrived -> timelineFeeds.onPostArrived(event.post)
 
