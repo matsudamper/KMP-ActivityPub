@@ -26,6 +26,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlRegisteredPasskey
 import net.matsudamper.kmp.activitypub.graphql.model.QlSearchedUser
 import net.matsudamper.kmp.activitypub.graphql.model.QlTimelinePost
 import net.matsudamper.kmp.activitypub.graphql.model.QlUser
+import net.matsudamper.kmp.activitypub.graphql.model.QlUserFollowCounts
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserInfo
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserProfile
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserSearchResult
@@ -78,6 +79,23 @@ class QueryResolverImpl : QueryResolver {
                     )
                 }
             DataFetcherResult.Builder<QlUserProfile?>(result).build()
+        }
+    }
+
+    override fun userProfileFollowCounts(acct: String, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlUserFollowCounts?>> {
+        val accountId = GraphQlEngine.graphQlContext(env).userAccountId()
+        val diContainer = GraphQlEngine.diContainer(env)
+        return otelSupplyAsync {
+            val counts = runBlocking {
+                diContainer.profileFollowCountsService.counts(acct, accountId)
+            }
+            val result = counts?.let {
+                QlUserFollowCounts(
+                    followingCount = it.following?.toInt(),
+                    followersCount = it.followers?.toInt(),
+                )
+            }
+            DataFetcherResult.Builder<QlUserFollowCounts?>(result).build()
         }
     }
 

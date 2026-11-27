@@ -64,6 +64,11 @@ type Query {
     """
     userProfilePosts(acct: String!, after: String): ProfilePostPage
     """
+    プロフィールのフォロー・フォロワーの数。他のサーバーのユーザーは相手のサーバーへ取りに行くので、userProfile とは別に読む。
+    ログインしていなければ、他のサーバーのユーザーは相手のサーバーへ取りに行かず、数は null。見つからなければ null
+    """
+    userProfileFollowCounts(acct: String!): UserFollowCounts
+    """
     プロフィールのユーザーがいいねした投稿。after が null なら最初のページ、続きは前回の nextCursor を after に渡す。
     このサーバーのユーザーは本人か、いいねを公開しているとき、他のサーバーのユーザーは Actor の liked を読めたときに返す。
     見ているアカウントが開けない投稿は出さない。返せないか、ログインしていなければ null で、プロフィールに「いいね」を出さない

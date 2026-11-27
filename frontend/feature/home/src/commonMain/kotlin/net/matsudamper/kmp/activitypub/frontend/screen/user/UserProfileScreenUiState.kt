@@ -69,6 +69,8 @@ data class UserProfileScreenUiState(
             val likes: List<PostItemUiState>,
             val likesEmptyMessage: String?,
             val likesFooter: PostsFooter,
+            val followingCount: String,
+            val followersCount: String,
         ) : Content
 
         data object NotFound : Content

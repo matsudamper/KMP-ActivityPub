@@ -144,6 +144,8 @@ private fun UserProfileContentPreview() {
                         likes = listOf(),
                         likesEmptyMessage = null,
                         likesFooter = UserProfileScreenUiState.PostsFooter.Loading,
+                        followingCount = "128",
+                        followersCount = "1024",
                     ),
                     deleteNoteDialog = null,
                     reactionPickerDialog = null,
@@ -312,6 +314,8 @@ private fun UserProfileContentMediaPreview() {
                     likes = listOf(),
                     likesEmptyMessage = null,
                     likesFooter = UserProfileScreenUiState.PostsFooter.None,
+                    followingCount = "…",
+                    followersCount = "…",
                 ),
                 deleteNoteDialog = null,
                 reactionPickerDialog = null,
@@ -472,6 +476,8 @@ private val LocalUserContent = UserProfileScreenUiState.Content.Loaded(
     likes = listOf(),
     likesEmptyMessage = null,
     likesFooter = UserProfileScreenUiState.PostsFooter.None,
+    followingCount = "3",
+    followersCount = "-",
 )
 
 private val LocalUserUiState = UserProfileScreenUiState(

@@ -490,6 +490,32 @@ private fun ProfileHeader(
         if (profile.links.isNotEmpty()) {
             ProfileLinks(links = profile.links, modifier = Modifier.fillMaxWidth())
         }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            FollowCount(count = profile.followingCount, label = "購読")
+            FollowCount(count = profile.followersCount, label = "フォロワー")
+        }
+    }
+}
+
+@Composable
+private fun FollowCount(
+    count: String,
+    label: String,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = count,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

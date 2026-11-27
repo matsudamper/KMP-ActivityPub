@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.federation
 
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.logic.OutboxPosition
+import net.matsudamper.kmp.activitypub.logic.ProfileFollowCounts
 import net.matsudamper.kmp.activitypub.logic.RemoteLikedCollections
 import net.matsudamper.kmp.activitypub.logic.RemoteLikedObjects
 import net.matsudamper.kmp.activitypub.logic.RemoteNotesPage
@@ -49,6 +50,19 @@ internal class KotpubRemoteUserProfiles(
             override suspend fun featuredNotes(): List<RemoteNoteInput> = outbox.featured(actor, limit = 20).notesOrEmpty(actorUri, kind = "featured")
         }
     }
+
+    override suspend fun followCounts(actorUri: String): ProfileFollowCounts =
+        when (val lookup = outbox.collectionsOf(actorUri)) {
+            is RemoteActorCollectionsLookup.Found -> {
+                val counts = outbox.followCounts(lookup.collections)
+                ProfileFollowCounts(following = counts.following, followers = counts.followers)
+            }
+
+            is RemoteActorCollectionsLookup.Unavailable -> {
+                logger.warn("フォローの数を読むためのアクターを取れなかった: $actorUri ${lookup.failure}")
+                ProfileFollowCounts(following = null, followers = null)
+            }
+        }
 
     private fun RemoteOutboxPageResult.toNotesPage(actorUri: String, from: OutboxPosition?): RemoteNotesPage? =
         when (this) {

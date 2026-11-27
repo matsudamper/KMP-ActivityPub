@@ -17,6 +17,13 @@ type UserProfile {
     viewerIsOwner: Boolean!
 }
 
+type UserFollowCounts {
+    "他のサーバーのユーザーが数を出していないか、読めなければ null"
+    followingCount: Int
+    "成立したフォローだけを数える。他のサーバーのユーザーが数を出していないか、読めなければ null"
+    followersCount: Int
+}
+
 type ProfilePostPage {
     posts: [ProfilePost!]!
     "続きが無ければ null"

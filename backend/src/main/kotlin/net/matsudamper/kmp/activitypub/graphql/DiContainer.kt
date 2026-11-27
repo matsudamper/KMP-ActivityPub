@@ -24,6 +24,7 @@ import net.matsudamper.kmp.activitypub.logic.PollService
 import net.matsudamper.kmp.activitypub.logic.PostCountService
 import net.matsudamper.kmp.activitypub.logic.PostRepliesService
 import net.matsudamper.kmp.activitypub.logic.PostSearchService
+import net.matsudamper.kmp.activitypub.logic.ProfileFollowCountsService
 import net.matsudamper.kmp.activitypub.logic.ProfileHeaderUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileLikesService
@@ -55,6 +56,7 @@ class DiContainer(
     val userSearchService: UserSearchService,
     val postSearchService: PostSearchService,
     val userProfileService: UserProfileService,
+    val profileFollowCountsService: ProfileFollowCountsService,
     val profileLikesService: ProfileLikesService,
     val viewablePostService: ViewablePostService,
     val notePinService: NotePinService,

@@ -23,6 +23,13 @@ query UserProfile($username: String!) {
     }
 }
 
+query UserProfileFollowCounts($acct: String!) {
+    userProfileFollowCounts(acct: $acct) {
+        followingCount
+        followersCount
+    }
+}
+
 query UserProfilePosts($acct: String!, $after: String) {
     userProfilePosts(acct: $acct, after: $after) {
         posts {
