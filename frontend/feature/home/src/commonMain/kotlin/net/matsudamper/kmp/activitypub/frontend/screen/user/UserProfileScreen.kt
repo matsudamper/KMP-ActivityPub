@@ -490,9 +490,10 @@ private fun ProfileHeader(
         if (profile.links.isNotEmpty()) {
             ProfileLinks(links = profile.links, modifier = Modifier.fillMaxWidth())
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            FollowCount(count = profile.followingCount, label = "購読")
-            FollowCount(count = profile.followersCount, label = "フォロワー")
+        // 数が読めると文字の幅が変わるので、ラベルを先に置いて項目ごとに幅を決め、周りを動かさない
+        Row(modifier = Modifier.fillMaxWidth()) {
+            FollowCount(count = profile.followingCount, label = "購読", modifier = Modifier.weight(1f))
+            FollowCount(count = profile.followersCount, label = "フォロワー", modifier = Modifier.weight(1f))
         }
     }
 }
@@ -501,20 +502,22 @@ private fun ProfileHeader(
 private fun FollowCount(
     count: String,
     label: String,
+    modifier: Modifier = Modifier,
 ) {
     Row(
+        modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = count,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = count,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Bold,
         )
     }
 }
