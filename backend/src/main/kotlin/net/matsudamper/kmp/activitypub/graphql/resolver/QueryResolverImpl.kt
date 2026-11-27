@@ -91,13 +91,18 @@ class QueryResolverImpl : QueryResolver {
             }
             val result = counts?.let {
                 QlUserFollowCounts(
-                    followingCount = it.following?.toInt(),
-                    followersCount = it.followers?.toInt(),
+                    followingCount = it.following?.toGraphQlCount(),
+                    followersCount = it.followers?.toGraphQlCount(),
                 )
             }
             DataFetcherResult.Builder<QlUserFollowCounts?>(result).build()
         }
     }
+
+    /**
+     * GraphQL の Int に入らない数は、桁あふれで負の数にならないよう上限で止める
+     */
+    private fun Long.toGraphQlCount(): Int = coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
 
     override fun userProfilePosts(acct: String, after: String?, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlProfilePostPage?>> {
         val cursor = after?.let { ProfilePostCursor.decode(it) ?: throw GraphQlClientException("after が読めない") }
