@@ -105,6 +105,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import androidx.lifecycle.compose.LifecycleStartEffect
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
@@ -260,8 +261,10 @@ internal fun HomeScreen(
         uiState.listener.onTabChanged(tab.toUiStateTab())
     }
 
-    LaunchedEffect(uiState.listener) {
+    // Web ではタブを裏にしている間に購読が切れたり、つなぎ直した間の投稿を取りこぼしたりするので、表に戻るたびに読み直す
+    LifecycleStartEffect(uiState.listener) {
         uiState.listener.onScreenShown()
+        onStopOrDispose { }
     }
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         if (maxWidth >= COLUMNS_LAYOUT_MIN_WIDTH) {

@@ -155,8 +155,17 @@ class UserProfileService(
             if (outboxPage == null) {
                 ProfilePostsResult.Unreachable
             } else {
+                val continuation = outboxPage.continuationAfter(cursor)
                 ProfilePostsResult.Found(
-                    mergedRemotePage(viewer, cursor.actorUri, outboxPage, cursor.storedBefore?.toPosition(), cursor.pinnedObjectUris, cursor.shownAtBoundary),
+                    mergedRemotePage(
+                        viewer = viewer,
+                        actorUri = cursor.actorUri,
+                        outboxPage = continuation.page,
+                        storedBefore = cursor.storedBefore?.toPosition(),
+                        pinnedObjectUris = cursor.pinnedObjectUris,
+                        shownAtBoundary = cursor.shownAtBoundary,
+                        outboxReadWithoutNewNotes = continuation.readWithoutNewNotes,
+                    ),
                 )
             }
         }
@@ -279,10 +288,40 @@ class UserProfileService(
                 storedBefore = null,
                 pinnedObjectUris = pinnedObjectUris,
                 shownAtBoundary = listOf(),
+                outboxReadWithoutNewNotes = listOf(),
             )
         }
         page.copy(posts = withStored(viewer, featuredNotes).map { it.second.copy(pinned = true) } + page.posts)
     }
+
+    /**
+     * outbox を新しい順に並べ切らず、前のページより新しい投稿と前のページを指す next を返して、ページを行き来するサーバーがある。
+     * そのまま返すと同じ投稿が終わり無く続くので、前のページまでに出した時刻より新しい投稿は外す。
+     * 出し済みの投稿だけのページは途中にもあり得るので、それだけでは止めない。まだ出していない投稿が出てから読んだ位置を
+     * 次にもう一度読もうとしたら、行き来しているものとして outbox は読み終え、保存済みの投稿に移る
+     */
+    private fun RemoteNotesPage.continuationAfter(cursor: ProfilePostCursor.Remote): OutboxContinuation {
+        val shownDownTo = cursor.storedBefore
+        val unshownNotes = if (shownDownTo == null) {
+            notes
+        } else {
+            notes.filter { note -> note.publishedAt.toEpochMilli() < shownDownTo.score && note.objectUri !in cursor.shownAtBoundary }
+        }
+        val readWithoutNewNotes = if (unshownNotes.isEmpty()) cursor.outboxReadWithoutNewNotes + cursor.outbox else listOf(cursor.outbox)
+        val circulating = next != null && next in readWithoutNewNotes
+        return OutboxContinuation(
+            page = RemoteNotesPage(notes = unshownNotes, next = if (circulating) null else next),
+            readWithoutNewNotes = readWithoutNewNotes,
+        )
+    }
+
+    /**
+     * @param readWithoutNewNotes まだ出していない投稿が最後に出たページから、このページまでに読んだ outbox の位置
+     */
+    private data class OutboxContinuation(
+        val page: RemoteNotesPage,
+        val readWithoutNewNotes: List<OutboxPosition>,
+    )
 
     /**
      * @return 読めなければ null
@@ -297,6 +336,7 @@ class UserProfileService(
      * @param storedBefore 保存済みの投稿をここより古い方から混ぜる。最初のページなら null
      * @param pinnedObjectUris 最初のページの先頭に固定した投稿として出した投稿。どのページでも一覧からは外す
      * @param shownAtBoundary 前のページで出した、前のページの境目と同じ時刻の投稿
+     * @param outboxReadWithoutNewNotes まだ出していない投稿が最後に出たページから、このページまでに読んだ outbox の位置
      */
     private fun mergedRemotePage(
         viewer: AccountId,
@@ -305,6 +345,7 @@ class UserProfileService(
         storedBefore: TimelinePosition?,
         pinnedObjectUris: List<String>,
         shownAtBoundary: List<String>,
+        outboxReadWithoutNewNotes: List<OutboxPosition>,
     ): ProfilePostPage {
         val outboxPosts = withStored(viewer, outboxPage.notes)
         val lowestScore = outboxPage.notes.minOfOrNull { it.publishedAt.toEpochMilli() }
@@ -340,6 +381,7 @@ class UserProfileService(
                     storedBefore = belowPage?.let { StoredTimelinePosition(it.score, it.member) },
                     pinnedObjectUris = pinnedObjectUris,
                     shownAtBoundary = (outboxPage.notes.filter { it.publishedAt.toEpochMilli() == lowestScore }.map { it.objectUri } + stillAtPreviousBoundary).distinct(),
+                    outboxReadWithoutNewNotes = outboxReadWithoutNewNotes,
                 )
 
                 olderThanOutbox.size == PROFILE_POST_LIMIT && lastOlder != null ->
@@ -702,6 +744,7 @@ sealed interface ProfilePostCursor {
      *
      * @param pinnedObjectUris 最初のページの先頭に固定した投稿として出した投稿。続きにも同じ投稿を出さないよう持ち回る
      * @param shownAtBoundary 前のページの outbox の境目と同じ時刻で、前のページに出した投稿。同じ時刻の保存済みの投稿を次のページに回すので、重ならないよう外す
+     * @param outboxReadWithoutNewNotes まだ出していない投稿が最後に出たページから読んだ outbox の位置。次に読む位置がここにあれば、outbox が行き来している
      */
     @Serializable
     @SerialName("remote")
@@ -711,6 +754,8 @@ sealed interface ProfilePostCursor {
         @SerialName("storedBefore") val storedBefore: StoredTimelinePosition?,
         @SerialName("pinnedObjectUris") val pinnedObjectUris: List<String>,
         @SerialName("shownAtBoundary") val shownAtBoundary: List<String>,
+        // 配った後に足した項目なので、足す前に配った続きも読めるよう既定を持たせる
+        @SerialName("outboxReadWithoutNewNotes") val outboxReadWithoutNewNotes: List<OutboxPosition> = listOf(),
     ) : ProfilePostCursor
 
     /**
