@@ -20,6 +20,7 @@ import net.matsudamper.kmp.activitypub.logic.NotePinService
 import net.matsudamper.kmp.activitypub.logic.NotificationService
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.PostSearchService
+import net.matsudamper.kmp.activitypub.logic.ProfileFollowCountsService
 import net.matsudamper.kmp.activitypub.logic.ProfileLikesService
 import net.matsudamper.kmp.activitypub.logic.ServerBlockService
 import net.matsudamper.kmp.activitypub.logic.UnknownObjectTypeService
@@ -202,6 +203,15 @@ class AppDependencies(
         timeline = repositories.timelineRepository,
         pins = repositories.notePinRepository,
         following = followingService,
+        remoteProfiles = federation?.remoteUserProfiles,
+        localDomain = checkNotNull(env.domain),
+    )
+
+    val profileFollowCountsService: ProfileFollowCountsService = ProfileFollowCountsService(
+        accounts = repositories.accountRepository,
+        following = repositories.followingRepository,
+        followers = repositories.followerRepository,
+        remoteActors = repositories.remoteActorRepository,
         remoteProfiles = federation?.remoteUserProfiles,
         localDomain = checkNotNull(env.domain),
     )

@@ -28,6 +28,8 @@ class ActorBlockServiceTest {
         override suspend fun recentNotesPage(actorUri: String, from: OutboxPosition?): RemoteNotesPage? = error("投稿は読まない")
 
         override suspend fun postSources(actorUri: String): RemoteProfilePostSources = error("投稿は読まない")
+
+        override suspend fun followCounts(actorUri: String): ProfileFollowCounts = error("フォローの数は読まない")
     }
     private val following =
         FollowingService(

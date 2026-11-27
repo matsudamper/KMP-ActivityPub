@@ -26,6 +26,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlRegisteredPasskey
 import net.matsudamper.kmp.activitypub.graphql.model.QlSearchedUser
 import net.matsudamper.kmp.activitypub.graphql.model.QlTimelinePost
 import net.matsudamper.kmp.activitypub.graphql.model.QlUser
+import net.matsudamper.kmp.activitypub.graphql.model.QlUserFollowCounts
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserInfo
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserProfile
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserSearchResult
@@ -80,6 +81,28 @@ class QueryResolverImpl : QueryResolver {
             DataFetcherResult.Builder<QlUserProfile?>(result).build()
         }
     }
+
+    override fun userProfileFollowCounts(acct: String, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlUserFollowCounts?>> {
+        val accountId = GraphQlEngine.graphQlContext(env).userAccountId()
+        val diContainer = GraphQlEngine.diContainer(env)
+        return otelSupplyAsync {
+            val counts = runBlocking {
+                diContainer.profileFollowCountsService.counts(acct, accountId)
+            }
+            val result = counts?.let {
+                QlUserFollowCounts(
+                    followingCount = it.following?.toGraphQlCount(),
+                    followersCount = it.followers?.toGraphQlCount(),
+                )
+            }
+            DataFetcherResult.Builder<QlUserFollowCounts?>(result).build()
+        }
+    }
+
+    /**
+     * GraphQL の Int に入らない数は、桁あふれで負の数にならないよう上限で止める
+     */
+    private fun Long.toGraphQlCount(): Int = coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
 
     override fun userProfilePosts(acct: String, after: String?, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlProfilePostPage?>> {
         val cursor = after?.let { ProfilePostCursor.decode(it) ?: throw GraphQlClientException("after が読めない") }

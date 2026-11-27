@@ -96,6 +96,8 @@ class UserProfileServiceTest {
             requests.add("profile:$actorUri")
             return RemoteUserProfile(RemoteUser(actorUri, "bob", "Bob", null, listOf()), "https://remote.example/header.png", "自己紹介", fields)
         }
+
+        override suspend fun followCounts(actorUri: String): ProfileFollowCounts = error("フォローの数は読まない")
     }
     private val service = UserProfileService(
         accounts = repositories.accountRepository,

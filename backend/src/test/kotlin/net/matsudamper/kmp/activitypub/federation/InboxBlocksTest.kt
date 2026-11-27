@@ -81,7 +81,7 @@ class InboxBlocksTest {
     private fun favourite(notePublicId: String, actorUri: String): FavouriteStore.ReceivedFavourite =
         FavouriteStore.ReceivedFavourite(
             KotpubPublicNoteId(notePublicId),
-            RemoteActor(actorUri, "$actorUri/inbox", null, "key", RemoteActorProfile("carol", null, actorUri, null, null, emojis = listOf())),
+            RemoteActor(actorUri, "$actorUri/inbox", null, "key", RemoteActorProfile("carol", null, actorUri, null, null, emojis = listOf()), alsoKnownAs = listOf()),
             Instant.EPOCH,
         )
 }

@@ -22,6 +22,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLikeState
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostBody
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostStamp
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileFollowCounts
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileLikesResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfilePostsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileResult
@@ -332,6 +333,7 @@ internal class UserProfileScreenViewModel(
                         profile = result,
                         posts = PostsState(posts = listOf(), next = NextPosts.FirstPage, loadErrorMessage = null, pagesWithoutMedia = 0),
                         likes = LikesState(posts = listOf(), next = NextPosts.FirstPage, loadErrorMessage = null, available = false),
+                        followCounts = FollowCountsState.Loading,
                     )
 
                     UserProfileResult.NotFound -> ProfileState.NotFound
@@ -341,7 +343,19 @@ internal class UserProfileScreenViewModel(
             updateProfile { profile }
             loadMore()
             loadMoreLikes()
+            if (profile is ProfileState.Loaded) {
+                launch { loadFollowCounts() }
+            }
         }
+    }
+
+    /**
+     * 他のサーバーのユーザーは相手のサーバーを待つので、プロフィールを出した後で読む
+     */
+    private suspend fun loadFollowCounts() {
+        val counts = api.userProfileFollowCounts(acct = username)
+        val state = if (counts == null) FollowCountsState.Unavailable else FollowCountsState.Loaded(counts)
+        updateProfile { profile -> if (profile is ProfileState.Loaded) profile.copy(followCounts = state) else profile }
     }
 
     /**
@@ -890,7 +904,18 @@ internal class UserProfileScreenViewModel(
             likes = loaded.likes.posts.map { post -> createLikedPostItem(post, viewModelState) },
             likesEmptyMessage = if (loaded.likes.posts.isEmpty() && loaded.likes.next == NextPosts.End) "表示できるいいねはありません" else null,
             likesFooter = createLikesFooter(loaded.likes),
+            followingCount = followCountText(loaded.followCounts) { it.following },
+            followersCount = followCountText(loaded.followCounts) { it.followers },
         )
+    }
+
+    /**
+     * 読み込み中と数が分からないときも文字を出し、数が出たときに周りを動かさない
+     */
+    private fun followCountText(state: FollowCountsState, count: (UserProfileFollowCounts) -> Int?): String = when (state) {
+        FollowCountsState.Loading -> "…"
+        FollowCountsState.Unavailable -> "-"
+        is FollowCountsState.Loaded -> count(state.counts)?.toString() ?: "-"
     }
 
     /**
@@ -1055,6 +1080,14 @@ internal class UserProfileScreenViewModel(
         data class Account(val acct: String, val displayAcct: String) : BlockTarget
     }
 
+    private sealed interface FollowCountsState {
+        data object Loading : FollowCountsState
+
+        data class Loaded(val counts: UserProfileFollowCounts) : FollowCountsState
+
+        data object Unavailable : FollowCountsState
+    }
+
     private sealed interface ProfileState {
         data object Loading : ProfileState
 
@@ -1062,6 +1095,7 @@ internal class UserProfileScreenViewModel(
             val profile: UserProfileResult.Found,
             val posts: PostsState,
             val likes: LikesState,
+            val followCounts: FollowCountsState,
         ) : ProfileState
 
         data object NotFound : ProfileState

@@ -603,6 +603,11 @@ interface RemoteUserProfiles {
      * @return アクターを読めなければ null
      */
     suspend fun postSources(actorUri: String): RemoteProfilePostSources?
+
+    /**
+     * 相手のアクターの following と followers の数。読めなかった数は null
+     */
+    suspend fun followCounts(actorUri: String): ProfileFollowCounts
 }
 
 /**

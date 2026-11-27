@@ -87,6 +87,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.UploadNoteImageMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserLoginMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserLogoutMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserPostNoteMutation
+import net.matsudamper.kmp.activitypub.frontend.graphql.UserProfileFollowCountsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserProfileLikesQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserProfilePostsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserProfileQuery
@@ -960,6 +961,19 @@ class UserApi(
      */
     fun watchUserProfile(username: String): Flow<UserProfileResult.Found> =
         watchCache(UserProfileQuery(username = username)).mapNotNull { it.userProfile?.toFound() }
+
+    /**
+     * プロフィールのフォロー・フォロワーの数。他のサーバーのユーザーは相手のサーバーへ取りに行くので、[userProfile] とは別に読む
+     *
+     * @return 読めないか、見つからなければ null
+     */
+    suspend fun userProfileFollowCounts(acct: String): UserProfileFollowCounts? {
+        val client = clients.awaitLoadedClient() ?: return null
+        val response = client.query(UserProfileFollowCountsQuery(acct = acct)).execute()
+        if (response.exception != null || response.hasErrors()) return null
+        val counts = response.data?.userProfileFollowCounts ?: return null
+        return UserProfileFollowCounts(following = counts.followingCount, followers = counts.followersCount)
+    }
 
     /**
      * プロフィールの投稿。[userProfile] とは別に読むので、プロフィールは投稿を待たずに出せる
