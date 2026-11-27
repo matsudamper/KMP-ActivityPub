@@ -18,6 +18,7 @@ import net.matsudamper.kmp.activitypub.logic.BoostService
 import net.matsudamper.kmp.activitypub.logic.CustomEmojiService
 import net.matsudamper.kmp.activitypub.logic.CustomEmojiUrls
 import net.matsudamper.kmp.activitypub.logic.DeliveryTargetLimitService
+import net.matsudamper.kmp.activitypub.logic.FollowingService
 import net.matsudamper.kmp.activitypub.logic.LikeService
 import net.matsudamper.kmp.activitypub.logic.LinkPreviewService
 import net.matsudamper.kmp.activitypub.logic.LocalNoteEmojiObjects
@@ -80,6 +81,7 @@ import net.matsudamper.kotpub.inbox.FollowHandler
 import net.matsudamper.kotpub.inbox.FollowResponseHandler
 import net.matsudamper.kotpub.inbox.InboxEndpoint
 import net.matsudamper.kotpub.inbox.InboxService
+import net.matsudamper.kotpub.inbox.MoveHandler
 import net.matsudamper.kotpub.inbox.ReactionHandler
 import net.matsudamper.kotpub.inbox.RecordedFallbackPublicKeys
 import net.matsudamper.kotpub.inbox.UndoBoostHandler
@@ -297,7 +299,7 @@ internal class Federation(
         wakeUpQueue = deliveryQueueWorker::wakeUp,
     )
 
-    val followDelivery = QueuedFollowDelivery(
+    private val followDelivery = QueuedFollowDelivery(
         accountService,
         directory,
         remoteActors,
@@ -307,6 +309,19 @@ internal class Federation(
         deliveryQueueRepository,
         Clock.systemUTC(),
         deliveryQueueWorker::wakeUp,
+    )
+
+    /**
+     * 受け取った `Move` でフォローを付け替えるのに inbox からも使うので、ここで作る
+     */
+    val followingService: FollowingService = FollowingService(
+        accounts = accountRepository,
+        following = followingRepository,
+        blockLists = blockLists,
+        delivery = followDelivery,
+        invalidator = timeline,
+        localDomain = domain,
+        clock = Clock.systemUTC(),
     )
 
     private val followingResponses = RecordedFollowingResponses(followingRepository, Clock.systemUTC(), openTelemetry)
@@ -534,6 +549,7 @@ internal class Federation(
                         unknownTypes = unknownTypes,
                         remoteNotes = remoteNotes,
                     ),
+                    MoveHandler(remoteActors = remoteActors, followings = MovedActorFollowingService(followingService)),
                     FollowResponseHandler("Accept", followingResponses),
                     FollowResponseHandler("Reject", followingResponses),
                     DeleteHandler(

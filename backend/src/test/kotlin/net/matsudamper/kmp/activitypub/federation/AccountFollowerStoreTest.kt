@@ -99,7 +99,7 @@ class AccountFollowerStoreTest {
 
     @Test
     fun rejectEnqueuesRejectToTheFollowerInbox() {
-        val follower = RemoteActor(CAROL, "$CAROL/inbox", null, "key", RemoteActorProfile("carol", null, null, null, null, emojis = listOf()))
+        val follower = RemoteActor(CAROL, "$CAROL/inbox", null, "key", RemoteActorProfile("carol", null, null, null, null, emojis = listOf()), listOf())
 
         assertTrue(store.reject("alice", follower, "https://remote.example/follows/1", Instant.EPOCH, "{\"type\":\"Reject\"}"))
 
@@ -120,7 +120,7 @@ class AccountFollowerStoreTest {
         actorId: String,
         inbox: String = "$actorId/inbox",
         sharedInbox: String? = null,
-    ): RemoteActor = RemoteActor(actorId, inbox, sharedInbox, "key", RemoteActorProfile(null, null, null, null, null, emojis = listOf()))
+    ): RemoteActor = RemoteActor(actorId, inbox, sharedInbox, "key", RemoteActorProfile(null, null, null, null, null, emojis = listOf()), listOf())
 
     private fun RemoteActor.toRecord(): RemoteActorRecord = RemoteActorRecord(
         actorUri = actorId,

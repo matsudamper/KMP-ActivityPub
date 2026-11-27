@@ -46,6 +46,24 @@ class FollowingService(
         }
     }
 
+    /**
+     * 引っ越した相手をフォローしているアカウントに、移り先をフォローさせて移り元のフォローを外す。
+     * 移り先をまだフォローしていなければ、購読先も移り元のものを引き継ぐ。
+     *
+     * 移り先をブロックしているアカウントも、移り元のフォローは外す。移り元はもう投稿しない
+     */
+    suspend fun moveFollowing(movedFromActorUri: String, movedToActorUri: String) {
+        following.accountIdsFollowing(movedFromActorUri).forEach { accountId ->
+            val movedFromGroupId = following.groupIdOf(accountId, movedFromActorUri)
+            val alreadyFollowingMovedTo = following.contains(accountId, movedToActorUri)
+            val movedToFollowed = setFollowing(accountId, movedToActorUri, true)
+            if (movedToFollowed && !alreadyFollowingMovedTo && movedFromGroupId != null) {
+                following.setGroup(accountId, movedToActorUri, movedFromGroupId)
+            }
+            setFollowing(accountId, movedFromActorUri, false)
+        }
+    }
+
     private fun blockedFollowingActorUris(accountId: AccountId, blockList: BlockList): List<String> =
         generateSequence(following.list(accountId, null, UNFOLLOW_PAGE_SIZE)) { page ->
             if (page.size < UNFOLLOW_PAGE_SIZE) return@generateSequence null

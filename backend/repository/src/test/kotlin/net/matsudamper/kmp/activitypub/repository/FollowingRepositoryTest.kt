@@ -191,4 +191,32 @@ class FollowingRepositoryTest {
             directory.deleteIfExists()
         }
     }
+
+    @Test
+    fun accountIdsFollowingReturnsOnlyAccountsFollowingTheActor() {
+        val directory = createTempDirectory("following-accounts-test")
+        val path = directory.resolve("test.db")
+        try {
+            TestSchema.applyTo(path)
+            listOf("alice", "bob", "carol").forEach { username ->
+                Accounts.insert(path, username, "hash", "hash-type", "public-key", "private-key", Instant.EPOCH.toString())
+            }
+            Repositories.create(DatabaseConfig(path = path)).use { repositories ->
+                val alice = checkNotNull(repositories.accountRepository.findByUsername("alice")).id
+                val bob = checkNotNull(repositories.accountRepository.findByUsername("bob")).id
+                val carol = checkNotNull(repositories.accountRepository.findByUsername("carol")).id
+                val actorUri = "https://remote.example/users/dave"
+                val following = repositories.followingRepository
+                following.add(alice, actorUri, Instant.EPOCH)
+                following.add(bob, actorUri, Instant.EPOCH)
+                following.add(carol, "https://remote.example/users/erin", Instant.EPOCH)
+
+                assertEquals(listOf(alice, bob), following.accountIdsFollowing(actorUri))
+                assertEquals(listOf(), following.accountIdsFollowing("https://remote.example/users/frank"))
+            }
+        } finally {
+            directory.toFile().listFiles().orEmpty().forEach { it.toPath().deleteIfExists() }
+            directory.deleteIfExists()
+        }
+    }
 }

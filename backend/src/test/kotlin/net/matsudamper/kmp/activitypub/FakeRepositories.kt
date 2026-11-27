@@ -103,6 +103,8 @@ internal class FakeRepositories : Repositories {
             .take(limit)
             .map { ListedActor(actorUri = it, listedAt = Instant.EPOCH, preferredUsername = null, displayName = null, iconUrl = null, emojis = listOf(), actorUpdatedAt = null) }
         override fun count(accountId: AccountId): Long = entries.count { it.first == accountId }.toLong()
+        override fun accountIdsFollowing(actorUri: String): List<AccountId> =
+            entries.filter { it.second == actorUri }.map { it.first }.sortedBy { it.value }
         override fun listAcceptedActorUris(username: String, after: String?, limit: Int): List<String> = throw NotImplementedError()
         override fun countAccepted(username: String): Long = throw NotImplementedError()
     }

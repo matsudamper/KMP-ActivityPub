@@ -37,6 +37,11 @@ interface FollowingRepository {
     fun count(accountId: AccountId): Long
 
     /**
+     * [actorUri] をフォローしているこちらのアカウント
+     */
+    fun accountIdsFollowing(actorUri: String): List<AccountId>
+
+    /**
      * 相手が受け入れたフォロー先のアクター URL を URL 順に返す
      *
      * @param after この URL より後ろを返す。null なら先頭から
