@@ -1020,7 +1020,12 @@ internal class HomeScreenViewModel(
         timelineArrivalsJob = viewModelScope.launch {
             userApi.accountEventStream().collect { event ->
                 when (event) {
-                    AccountStreamEvent.Subscribing -> updateTimelineStreamConnection(TimelineStreamConnection.Receiving)
+                    AccountStreamEvent.Subscribing -> {
+                        val resubscribing = viewModelStateFlow.value.timelineStream.connection == TimelineStreamConnection.WaitingToReconnect
+                        updateTimelineStreamConnection(TimelineStreamConnection.Receiving)
+                        // 切れていた間の投稿は流れてこないので、つなぎ直したら読み直して埋める
+                        if (resubscribing) loadTimeline(TimelineLoadTrigger.Reconnect)
+                    }
 
                     is AccountStreamEvent.PostArrived -> timelineFeeds.onPostArrived(event.post)
 
@@ -1225,8 +1230,8 @@ internal class HomeScreenViewModel(
             try {
                 val failure = timelineFeeds.refresh(
                     sources = sources,
-                    // 1 ページ目だけにすると、続きまで読んでいたカラムが戻ってきたときに位置を保てず、読み直しからやり直しになる
-                    keepLoadedPages = trigger == TimelineLoadTrigger.ScreenShown,
+                    // 1 ページ目だけにすると、続きまで読んでいたカラムが戻ってきたときやつなぎ直したときに位置を保てず、読み直しからやり直しになる
+                    keepLoadedPages = trigger == TimelineLoadTrigger.ScreenShown || trigger == TimelineLoadTrigger.Reconnect,
                 )
                 showTimelineRefreshFailure(failure)
             } finally {

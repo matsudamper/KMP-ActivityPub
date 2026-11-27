@@ -299,6 +299,8 @@ class HomeScreenViewModelTest {
     fun streamGivesUpAfterConsecutiveFailuresAndReconnectIconRestartsIt() = withViewModel { viewModel, engine ->
         subscriptionRejected.value = true
         engine.responses.send { page(listOf("a"), null) }
+        // 諦めるまでに自動でつなぎ直す 4 回とも、切れていた間の投稿を埋めるために読み直す
+        repeat(4) { engine.responses.send { page(listOf("a"), null) } }
         viewModel.uiStateFlow.value.listener.onScreenShown()
         assertFalse(viewModel.uiStateFlow.value.timelineRefreshing)
         viewModel.uiStateFlow.first { it.timelineStreamStatus == HomeScreenUiState.TimelineStreamStatus.Disconnected }
@@ -316,6 +318,20 @@ class HomeScreenViewModelTest {
         arrivals.send(postArrived("c"))
         viewModel.uiStateFlow.first { it.mainColumnItems().size == 3 }
         assertEquals(listOf("c", "b", "a"), viewModel.uiStateFlow.value.mainColumnItems().map { it.body.text.text })
+        assertEquals(HomeScreenUiState.TimelineStreamStatus.Receiving, viewModel.uiStateFlow.value.timelineStreamStatus)
+    }
+
+    @Test
+    fun automaticReconnectReloadsTimelineToFillPostsMissedWhileDisconnected() = withViewModel { viewModel, engine ->
+        subscriptionRejected.value = true
+        // 最初の読み込みとつなぎ直したときの読み直しのどちらが先に応答を取るかは決まらないので、切れていた間に "b" が届いたことを応答の時点で決める
+        repeat(2) { engine.responses.send { page(if (subscriptionRejected.value) listOf("a") else listOf("b", "a"), null) } }
+        viewModel.uiStateFlow.value.listener.onScreenShown()
+        viewModel.uiStateFlow.first { it.timelineStreamStatus == HomeScreenUiState.TimelineStreamStatus.WaitingToReconnect }
+
+        subscriptionRejected.value = false
+        viewModel.uiStateFlow.first { it.mainColumnItems().size == 2 && it.timelineStreamStatus == HomeScreenUiState.TimelineStreamStatus.Receiving }
+        assertEquals(listOf("b", "a"), viewModel.uiStateFlow.value.mainColumnItems().map { it.body.text.text })
         assertEquals(HomeScreenUiState.TimelineStreamStatus.Receiving, viewModel.uiStateFlow.value.timelineStreamStatus)
     }
 
